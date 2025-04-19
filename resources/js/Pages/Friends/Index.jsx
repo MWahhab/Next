@@ -123,15 +123,18 @@ export default function Friends({ auth }) {
 
         // Listen for new friend requests
         channel.listen(".NewFriendRequest", (senderInfo) => {
-            console.log("listener triggered")
+            const { requestId, senderId, name, status, avatar, lastOnline, email } = senderInfo;
+
+            console.log("listener triggered, request id: ", requestId)
 
             const newRequest = {
-                id        : currentUserId,
-                name      : senderInfo.name,
-                status    : senderInfo.status,
-                avatar    : senderInfo.avatar,
-                lastActive: senderInfo.lastOnline,
-                email     : senderInfo.email,
+                id        : requestId,
+                senderId  : senderId,
+                name      : name,
+                status    : status,
+                avatar    : avatar,
+                lastActive: lastOnline,
+                email     : email,
             }
 
             console.log("new request: ", newRequest)
@@ -176,25 +179,36 @@ export default function Friends({ auth }) {
         //     setTimeout(() => setNotification(null), 5000)
         // })
         //
-        // // Listen for friend request rejected/canceled events
-        // channel.listen("FriendRequestRejected", (data) => {
-        //     // Remove from outgoing requests
-        //     setOutgoingRequests((prev) => prev.filter((request) => request.email !== data.user.email))
-        //
-        //     // Show notification
-        //     setNotification({
-        //         type: "error",
-        //         message: `${data.user.name} declined your friend request`,
-        //     })
-        //
-        //     setTimeout(() => setNotification(null), 5000)
-        // })
+        // Listen for friend request rejected/canceled events
+        channel.listen(".RemovedFriendRequest", (removalData) => {
+
+            console.log("made it errrrrrrrrrrrre, removal data: ", removalData)
+
+            console.log("req id is: ", removalData)
+
+            if(removalData.deletionType === "rejection") {
+                // Remove from outgoing requests
+                setOutgoingRequests((prev) => prev.filter((request) => request.id !== removalData.requestId))
+
+                setNotification({
+                    type: "error",
+                    message: `${removalData.recipientName} declined your friend request`,
+                })
+            }
+
+            if(removalData.deletionType === "cancellation") {
+                console.log("made itttttt")
+                setIncomingRequests((prev) => prev.filter((request) => request.id !== removalData.requestId))
+            }
+
+            setTimeout(() => setNotification(null), 5000)
+        })
 
         // Cleanup function
         return () => {
             channel.stopListening("NewFriendRequest")
             // channel.stopListening("FriendRequestAccepted")
-            // channel.stopListening("FriendRequestRejected")
+            channel.stopListening("FriendRequestRejected")
         }
     }, [auth.user.id])
 
@@ -311,47 +325,105 @@ export default function Friends({ auth }) {
     }
 
     // Handle reject request
-    const handleRejectRequest = (userId, userName) => {
+    const handleRejectRequest = (requestId, userName) => {
         setConfirmationData({
             title: "Reject Friend Request",
             message: `Are you sure you want to reject the friend request from ${userName}?`,
-            action: () => confirmRejectRequest(userId),
+            action: () => confirmRejectRequest(requestId),
         })
         setShowConfirmation(true)
     }
 
     // Confirm reject request
-    const confirmRejectRequest = (userId) => {
+    const confirmRejectRequest = (requestId) => {
         setIsProcessing(true)
-        // Simulate API call
-        setTimeout(() => {
-            setIncomingRequests(incomingRequests.filter((req) => req.id !== userId))
-            setIsProcessing(false)
-            setShowConfirmation(false)
-        }, 1000)
+
+        console.log("request id for deletion issss: ", requestId);
+
+        router.delete(route('request.destroy', requestId), {
+            data: {
+                deletionType: "rejection"
+            },
+            onSuccess: (page) => {
+                const { notification } = page.props;
+
+                console.log('notiii: ' + notification);
+
+                setNotification({
+                    type   : notification.type,
+                    message: notification.message
+                })
+
+                console.log('set notiiii')
+
+                notification.statusCode === 200 &&
+                setIncomingRequests(incomingRequests.filter((request) => request.id !== requestId));
+
+                console.log('madeToEndOf onsuccess')
+
+            },
+            onError: (errors) => {
+                console.log('didnt make it cuh')
+                setNotification({
+                    type: "error",
+                    message: errors?.recipientEmail || `Failed to reject friend request.`,
+                })
+                setTimeout(() => setNotification(null), 5000)
+            },
+            onFinish: () => {
+                console.log('finisheddddd')
+
+                setIsProcessing(false)
+                setShowConfirmation(false)
+            },
+        })
     }
 
     // Handle cancel outgoing request
-    const handleCancelRequest = (userId, userName) => {
-        router.post('request.destroy')
+    const handleCancelRequest = (requestId, userName) => {
 
         setConfirmationData({
             title: "Cancel Friend Request",
             message: `Are you sure you want to cancel your friend request to ${userName}?`,
-            action: () => confirmCancelRequest(userId),
+            action: () => confirmCancelRequest(requestId),
         })
         setShowConfirmation(true)
     }
 
     // Confirm cancel outgoing request
-    const confirmCancelRequest = (userId) => {
+    const confirmCancelRequest = (requestId) => {
         setIsProcessing(true)
-        // Simulate API call
-        setTimeout(() => {
-            setOutgoingRequests(outgoingRequests.filter((req) => req.id !== userId))
-            setIsProcessing(false)
-            setShowConfirmation(false)
-        }, 1000)
+
+        console.log("request id for deletion is: ", requestId);
+
+        router.delete(route('request.destroy', requestId), {
+            data: {
+                deletionType: "cancellation"
+            },
+            onSuccess: (page) => {
+                const { notification } = page.props;
+
+                setNotification({
+                    type   : notification.type,
+                    message: notification.message
+                })
+
+                notification.statusCode === 200 &&
+                    setOutgoingRequests(outgoingRequests.filter((request) => request.id !== requestId));
+
+            },
+            onError: (errors) => {
+                setNotification({
+                    type: "error",
+                    message: errors?.recipientEmail || `Failed to remove friend request.`,
+                })
+                setTimeout(() => setNotification(null), 5000)
+            },
+            onFinish: () => {
+                setIsProcessing(false)
+                setShowConfirmation(false)
+            },
+        })
     }
 
     // Handle add friend
@@ -377,14 +449,17 @@ export default function Friends({ auth }) {
                     })
 
                     if (notification.statusCode === 201) {
-                        // Add the outgoing request to the list so it's visible
+                        const { request } = page.props
+
+                        const { requestId, recipientName, recipientStatus, recipientAvatar, recipientLastOnline } = request;
+
                         const newOutgoingRequest = {
-                            id: Date.now(), // Temporary ID until refresh
-                            name: notification.recipientName || friendEmail.split("@")[0], // Use name if available, or extract from email
-                            email: friendEmail,
-                            status: "offline", // Default status
-                            avatar: null,
-                            lastActive: "Just now",
+                            id        : requestId,
+                            name      : recipientName,
+                            email     : friendEmail,
+                            status    : recipientStatus,
+                            avatar    : recipientAvatar,
+                            lastActive: recipientLastOnline,
                         }
 
                         setOutgoingRequests((prev) => [newOutgoingRequest, ...prev])

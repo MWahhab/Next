@@ -4,11 +4,11 @@ namespace App\Enums;
 
 enum DaysOfWeek: string
 {
-    case Monday    = "monday";
-    case Tuesday   = "tuesday";
-    case Wednesday = "wednesday";
-    case Thursday  = "thursday";
-    case Friday    = "friday";
-    case Saturday  = "saturday";
-    case Sunday    = "sunday";
+    case MONDAY    = "monday";
+    case TUESDAY   = "tuesday";
+    case WEDNESDAY = "wednesday";
+    case THURSDAY  = "thursday";
+    case FRIDAY    = "friday";
+    case SATURDAY  = "saturday";
+    case SUNDAY    = "sunday";
 }

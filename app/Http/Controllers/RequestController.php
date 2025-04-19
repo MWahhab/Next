@@ -2,16 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\RequestType;
-use App\Events\NewFriendRequest;
+use App\Enums\RequestDeletionType;
+use App\Http\Requests\DeleteUserRequest;
+use App\Http\Requests\StoreUserRequest;
 use App\Models\Request as RequestModel;
-use App\Models\User;
+use App\Services\RequestService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Redirect;
-use Illuminate\Validation\Rule;
-use Illuminate\Validation\Rules\Enum;
-use Inertia\Inertia;
 
 class RequestController extends Controller
 {
@@ -24,72 +20,22 @@ class RequestController extends Controller
     }
 
     /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
-
-    /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request): \Illuminate\Http\RedirectResponse
+    public function store(StoreUserRequest $request, RequestService $requestService): \Illuminate\Http\RedirectResponse
     {
-        $validatedRequest = $request->validateWithBag('request', [
-            'requestType'    => ['required', 'string', new Enum(RequestType::class)],
-            'recipientEmail' => ['required', 'string', 'email']
-        ]);
+        $validatedRequest = $request->validated();
 
-        //Rule::exists('users', 'email')->whereNot('id', Auth::id())  REFERENCE FOR FUTURE USE IN SOMETHING WHERE A VALUE HAS TO EXIST IN THE DB OR IT CRASHES
+        $recipientRequestData = $requestService->storeRequest($validatedRequest);
 
-        $sender = User::findOrFail(Auth::id());
-
-        $recipientId = User::where('email', $validatedRequest['recipientEmail'])->value('id');
-
-        if(!$recipientId) {
-            return back()->with(
-                [
-                    'statusCode' => 400,
-                    'type'       => "failure",
-                    'message'    => "The user doesn't exist!",
-                ]
-            );
-        }
-
-        RequestModel::create(
-            [
-                'sender_id'    => Auth::id(),
-                'recipient_id' => $recipientId,
-                'type'         => $validatedRequest['requestType'],
-            ]
-        );
-
-        broadcast(new NewFriendRequest($sender, $recipientId));
-
-        return back()->with(
+        return back()->with(array_merge(
             [
                 'statusCode' => 201,
                 'type'       => "success",
                 'message'    => "Friend request sent to {$validatedRequest['recipientEmail']}!",
-            ]
-        );
-    }
-
-    /**
-     * Display the specified resource.
-     */
-    public function show(Request $request)
-    {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Request $request)
-    {
-        //
+            ],
+            $recipientRequestData
+        ));
     }
 
     /**
@@ -103,8 +49,21 @@ class RequestController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Request $request)
+    public function destroy(DeleteUserRequest $req, RequestModel $request, RequestService $requestService): \Illuminate\Http\RedirectResponse
     {
-        //
+        if(!$request->exists) {
+            abort(404);
+        };
+
+        $validatedDeletionType = $req->validated();
+
+        $message =
+            $requestService->deleteRequest($request, RequestDeletionType::from($validatedDeletionType["deletionType"]));
+
+        return back()->with([
+            'statusCode' => 200,
+            'type'       => "success",
+            'message'    => $message
+        ]);
     }
 }

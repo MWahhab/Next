@@ -31,7 +31,7 @@ class HandleInertiaRequests extends Middleware
     {
         return [
             ...parent::share($request),
-            'auth' => [
+            'auth'         => [
                 'user' => $request->user(),
             ],
             'notification' => fn () => [
@@ -39,6 +39,13 @@ class HandleInertiaRequests extends Middleware
                 'type'       => $request->session()->get('type'),
                 'message'    => $request->session()->get('message'),
             ],
+            'request'      => fn () => [
+                'requestId'           => $request->session()->get('requestId'),
+                'recipientName'       => $request->session()->get('recipientName'),
+                'recipientStatus'     => $request->session()->get('recipientStatus'),
+                'recipientAvatar'     => $request->session()->get('recipientAvatar'),
+                'recipientLastOnline' => $request->session()->get('recipientLastOnline'),
+            ]
         ];
     }
 }
