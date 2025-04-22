@@ -4,10 +4,20 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Enums\UserStatus;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
+/**
+ * @property int     $id            Refers to the id of the user
+ * @property string  $name          Refers to the name of the user
+ * @property string  $email         Refers to the user's email
+ * @property string  $password      Refers to the user's password
+ * @property boolean $forced_status Refers to whether the user has set a forced status
+ * @property string  $status        Refers to the user's current status, e.g: online, offline
+ * @property Carbon  $last_online   Refers to a timestamp of when the user was last online
+ */
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */

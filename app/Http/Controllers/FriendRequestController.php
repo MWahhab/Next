@@ -20,14 +20,7 @@ class FriendRequestController extends Controller
 
         $recipientRequestData = $requestService->storeFriendRequest($validatedRequest);
 
-        return back()->with(array_merge(
-            [
-                'statusCode' => 201,
-                'type'       => "success",
-                'message'    => "Friend request sent to {$validatedRequest['recipientEmail']}!",
-            ],
-            $recipientRequestData
-        ));
+        return back()->with($recipientRequestData);
     }
 
     /**

@@ -8,6 +8,13 @@ use App\Events\RemovedFriendRequest;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property int $sender_id    Refers to the id of the person who made the friend request
+ * @property int $recipient_id Refers to the id of the person who received the request
+ *
+ * @property-read User $sender    Refers to the details of the user who sent the request
+ * @property-read User $recipient Refers to the details of the user who received the request
+ */
 class FriendRequest extends Model
 {
     protected $fillable = [

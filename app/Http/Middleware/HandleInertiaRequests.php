@@ -31,20 +31,21 @@ class HandleInertiaRequests extends Middleware
     {
         return [
             ...parent::share($request),
-            'auth'         => [
+            'auth'          => [
                 'user' => $request->user(),
             ],
-            'notification' => fn () => [
+            'notification'  => fn () => [
                 'statusCode' => $request->session()->get('statusCode'),
                 'type'       => $request->session()->get('type'),
                 'message'    => $request->session()->get('message'),
             ],
-            'friendRequest'      => fn () => [
-                'recipientId'         => $request->session()->get('recipientId'),
-                'recipientName'       => $request->session()->get('recipientName'),
-                'recipientStatus'     => $request->session()->get('recipientStatus'),
-                'recipientAvatar'     => $request->session()->get('recipientAvatar'),
-                'recipientLastOnline' => $request->session()->get('recipientLastOnline'),
+            'friendRequest' => fn () => [
+                'id'          => $request->session()->get('id'),
+                'name'        => $request->session()->get('name'),
+                'email'       => $request->session()->get('email'),
+                'status'      => $request->session()->get('status'),
+                'avatar'      => $request->session()->get('avatar'),
+                'last_online' => $request->session()->get('last_online'),
             ]
         ];
     }

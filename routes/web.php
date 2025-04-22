@@ -39,7 +39,7 @@ Route::middleware('auth')->group(function () {
     Route::resource('/task_assignee', TaskAssigneeController::class);
     Route::resource('/task', TaskController::class);
 
-    Route::put('/friend-request', [FriendRequestController::class, 'store'])->name('friend-request.store');
+    Route::post('/friend-request', [FriendRequestController::class, 'store'])->name('friend-request.store');
     Route::delete('/friend-request/{sender}/{recipient}', [FriendRequestController::class, 'destroy'])
         ->name('friend-request.destroy');
 });

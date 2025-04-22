@@ -5,13 +5,46 @@ namespace App\Services;
 use App\Enums\FriendRequestDeletionType;
 use App\Models\FriendRequest;
 use App\Models\User;
-use http\Exception;
+use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
 
 class FriendRequestService
 {
+    /**
+     * Fetches all the friend requests made by and to the user
+     *
+     * @return array Refers to an array which contains incoming and outgoing requests
+     */
+    public function getFriendRequests(): array
+    {
+        $userId = Auth::id();
+
+        return FriendRequest::with(["sender", "recipient"])
+            ->where("sender_id", $userId)
+            ->orWhere("recipient_id", $userId)
+            ->get()
+            ->map(function ($friendRequest) use ($userId) {
+                $isSender = $friendRequest->sender_id === $userId;
+
+                $otherPerson = $isSender ? $friendRequest->recipient->toArray() : $friendRequest->sender->toArray();
+                $requestType = $isSender ? "outgoingFriendRequests" : "incomingFriendRequests";
+
+                $otherPerson["last_online"] = Carbon::create($otherPerson["last_online"])->diffForHumans();
+
+                return [
+                    "otherPerson" => $otherPerson,
+                    "requestType" => $requestType
+                ];
+            })
+            ->groupBy("requestType")
+            ->map(function ($requestType) {
+                return $requestType->pluck("otherPerson");
+            })
+            ->toArray();
+    }
+
     /**
      * Stores new request in DB
      *
@@ -27,13 +60,19 @@ class FriendRequestService
         $recipient = User::where('email', $validatedData['recipientEmail'])->first();
 
         if(!$recipient) {
-            return back()->with(
-                [
-                    'statusCode' => 400,
-                    'type'       => "failure",
-                    'message'    => "The user doesn't exist!",
-                ]
-            );
+            return [
+                'statusCode' => 400,
+                'type'       => "failure",
+                'message'    => "The user doesn't exist!",
+            ];
+        }
+
+        if($recipient->id == Auth::id()) {
+            return [
+                'statusCode' => 422,
+                'type'       => "failure",
+                'message'    => "You cannot send a friend request to yourself!",
+            ];
         }
 
         FriendRequest::create(
@@ -43,13 +82,11 @@ class FriendRequestService
             ]
         );
 
-        return [
-            'recipientId'         => $recipient->id,
-            'recipientName'       => $recipient->name,
-            'recipientStatus'     => $recipient->status,
-            'recipientAvatar'     => $recipient->avatar,
-            'recipientLastOnline' => $recipient->last_online,
-        ];
+        return array_merge([
+            'statusCode' => 201,
+            'type'       => "success",
+            'message'    => "Friend request sent to {$recipient->email}!"
+        ], $recipient->toArray());
     }
 
     /**

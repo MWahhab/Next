@@ -3,16 +3,23 @@
 namespace App\Http\Controllers;
 
 use App\Models\Relationship;
+use App\Services\FriendRequestService;
+use App\Services\RelationshipService;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class RelationshipController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(RelationshipService $relationshipService, FriendRequestService $friendRequestService)
     {
-        //
+        $relationships = $relationshipService->getRelationships();
+
+        $requests = $friendRequestService->getFriendRequests();
+
+        return Inertia::render("Friends/Index", array_merge($relationships, $requests));
     }
 
     /**
