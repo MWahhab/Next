@@ -2,18 +2,16 @@
 
 namespace App\Http\Requests;
 
-use App\Enums\FriendRequestDeletionType;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rules\Enum;
 
-class DeleteUserRequest extends FormRequest
+class GetRelationships extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
      */
     public function authorize(): bool
     {
-        return true;
+        return false;
     }
 
     /**
@@ -24,7 +22,7 @@ class DeleteUserRequest extends FormRequest
     public function rules(): array
     {
         return [
-            "deletionType" => ["required", "string", new Enum(FriendRequestDeletionType::class)]
+            //
         ];
     }
 }

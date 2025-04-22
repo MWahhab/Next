@@ -99,7 +99,7 @@ export default function LeftSidebar({ setView }) {
                 <button className="p-2 hover:bg-gray-100 rounded-full" title="Archived Tasks">
                     <FileText size={20} />
                 </button>
-                <Link href={'/friendsList'} className="p-2 hover:bg-gray-100 rounded-full" title="Friends List">
+                <Link href={route('relationship.index')} className="p-2 hover:bg-gray-100 rounded-full" title="Friends List">
                     <Users size={20} />
                 </Link>
                 <Link href={route("profile.edit")} className="p-2 hover:bg-gray-100 rounded-full" title="Profile">

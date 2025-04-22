@@ -2,7 +2,7 @@
 
 namespace App\Events;
 
-use App\Enums\RequestDeletionType;
+use App\Enums\FriendRequestDeletionType as DeletionTypeEnum;
 use App\Models\User;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
@@ -15,46 +15,32 @@ class RemovedFriendRequest implements ShouldBroadcastNow
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     /**
-     * @var int         $requestId     Refers to the id of the request being made
+     * @var DeletionTypeEnum  $deletionType Refers to whether the request deletion was a rejection or cancellation
      */
-    private int     $requestId;
+    private DeletionTypeEnum  $deletionType;
 
     /**
-     * @var string  $deletionType      Refers to whether the request deletion was caused by a rejection or cancellation
+     * @var int               $senderId     Refers to the id of the sender of the request
      */
-    private string  $deletionType;
+    private int               $senderId;
 
     /**
-     * @var int         $userId        Refers to the id of the user listening to the event
+     * @var User              $recipient    Refers to the request recipient
      */
-    private int     $userId;
-
-    /**
-     * @var string|null $recipientName Refers to the name of the request recipient
-     */
-    private ?string $recipientName;
+    private User              $recipient;
 
     /**
      * Create a new Event instance
      *
-     * @param int    $requestId    Refers to the id of the request being made
-     * @param User   $sender       Refers to the person who sent the request
-     * @param User   $recipient    Refers to the person who received the request
-     * @param string $deletionType Refers to whether the removal was a rejection or a cancellation
+     * @param int              $senderId     Refers to the person who sent the request
+     * @param User             $recipient    Refers to the person who received the request
+     * @param DeletionTypeEnum $deletionType Refers to whether the removal was a rejection or a cancellation
      */
-    public function __construct(int $requestId, User $sender, User $recipient, string $deletionType)
+    public function __construct(int $senderId, User $recipient, DeletionTypeEnum $deletionType)
     {
-        $this->requestId    = $requestId;
+        $this->senderId     = $senderId;
+        $this->recipient    = $recipient;
         $this->deletionType = $deletionType;
-
-        if($deletionType == RequestDeletionType::REJECTION->value) {
-            $this->userId        = $sender->id;
-            $this->recipientName = $recipient->name;
-
-            return;
-        }
-
-        $this->userId = $recipient->id;
     }
 
     /**
@@ -64,8 +50,11 @@ class RemovedFriendRequest implements ShouldBroadcastNow
      */
     public function broadcastOn(): array
     {
+        $userListeningId =
+            $this->deletionType == DeletionTypeEnum::REJECTION ? $this->senderId : $this->recipient->id;
+
         return [
-            new PrivateChannel("friend-requests.{$this->userId}"),
+            new PrivateChannel("friend-requests." . $userListeningId),
         ];
     }
 
@@ -86,9 +75,16 @@ class RemovedFriendRequest implements ShouldBroadcastNow
      */
     public function broadcastWith(): array
     {
-        $broadcastData = ["requestId" => $this->requestId, "deletionType" => $this->deletionType];
+        $broadcastData = ["deletionType" => $this->deletionType->value];
 
-        isset($this->recipientName) && $broadcastData["recipientName"] = $this->recipientName;
+        if($this->deletionType == DeletionTypeEnum::REJECTION) {
+            $broadcastData["recipientId"]   = $this->recipient->id;
+            $broadcastData["recipientName"] = $this->recipient->name;
+
+            return $broadcastData;
+        }
+
+        $broadcastData["senderId"] = $this->senderId;
 
         return $broadcastData;
     }

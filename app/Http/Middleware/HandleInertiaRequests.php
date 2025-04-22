@@ -39,8 +39,8 @@ class HandleInertiaRequests extends Middleware
                 'type'       => $request->session()->get('type'),
                 'message'    => $request->session()->get('message'),
             ],
-            'request'      => fn () => [
-                'requestId'           => $request->session()->get('requestId'),
+            'friendRequest'      => fn () => [
+                'recipientId'         => $request->session()->get('recipientId'),
                 'recipientName'       => $request->session()->get('recipientName'),
                 'recipientStatus'     => $request->session()->get('recipientStatus'),
                 'recipientAvatar'     => $request->session()->get('recipientAvatar'),

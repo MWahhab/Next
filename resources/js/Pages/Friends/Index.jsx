@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Head, router } from "@inertiajs/react"
+import { Head, router, usePage } from "@inertiajs/react"
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout"
 import {
     User,
@@ -23,10 +23,17 @@ import {
 import { Link } from "@inertiajs/react"
 import ConfirmationModal from "@/Components/ConfirmationModal"
 
-export default function Friends({ auth }) {
+export default function Friends({
+                                    auth,
+                                    friends: initialFriends,
+                                    incomingFriendRequests: initialIncomingRequests,
+                                    outgoingFriendRequests: initialOutgoingRequests,
+                                    blockedUsers: initialBlockedUsers,
+                                }) {
+
     const [activeTab, setActiveTab] = useState("friends")
-    const [requestsSubTab, setRequestsSubTab] = useState("incoming") // New state for requests sub-tab
-    const [currentPage, setCurrentPage] = useState({ friends: 1, incoming: 1, outgoing: 1 }) // Updated for sub-tabs
+    const [requestsSubTab, setRequestsSubTab] = useState("incoming")
+    const [currentPage, setCurrentPage] = useState({ friends: 1, incoming: 1, outgoing: 1, blocked: 1 })
     const [showConfirmation, setShowConfirmation] = useState(false)
     const [confirmationData, setConfirmationData] = useState({
         title: "",
@@ -40,116 +47,39 @@ export default function Friends({ auth }) {
     const [friendEmail, setFriendEmail] = useState("")
     const [notification, setNotification] = useState(null)
 
-    // Friends and requests state
-    const [friends, setFriends] = useState([
-        { id: 1, name: "John Doe", status: "online", avatar: null, lastActive: "Just now" },
-        { id: 2, name: "Sarah Wilson", status: "online", avatar: null, lastActive: "Just now" },
-        { id: 3, name: "Mike Johnson", status: "away", avatar: null, lastActive: "5m ago" },
-        { id: 4, name: "Lisa Brown", status: "offline", avatar: null, lastActive: "1h ago" },
-        { id: 5, name: "Alex Smith", status: "online", avatar: null, lastActive: "Just now" },
-        { id: 6, name: "Emily Davis", status: "offline", avatar: null, lastActive: "3h ago" },
-        { id: 7, name: "Chris Wilson", status: "online", avatar: null, lastActive: "Just now" },
-        { id: 8, name: "Jessica Taylor", status: "away", avatar: null, lastActive: "10m ago" },
-        { id: 9, name: "David Miller", status: "online", avatar: null, lastActive: "Just now" },
-        { id: 10, name: "Amanda White", status: "offline", avatar: null, lastActive: "2h ago" },
-        { id: 11, name: "Robert Johnson", status: "away", avatar: null, lastActive: "15m ago" },
-        { id: 12, name: "Sophia Martinez", status: "online", avatar: null, lastActive: "Just now" },
-        { id: 13, name: "Daniel Thompson", status: "offline", avatar: null, lastActive: "1d ago" },
-        { id: 14, name: "Olivia Garcia", status: "online", avatar: null, lastActive: "Just now" },
-        { id: 15, name: "William Brown", status: "away", avatar: null, lastActive: "30m ago" },
-    ])
-
-    // Separate incoming and outgoing friend requests
-    const [incomingRequests, setIncomingRequests] = useState([
-        { id: 101, name: "Emma Wilson", status: "online", avatar: null, lastActive: "Just now" },
-        { id: 102, name: "Noah Martinez", status: "offline", avatar: null, lastActive: "2h ago" },
-        { id: 103, name: "Ava Johnson", status: "away", avatar: null, lastActive: "15m ago" },
-        { id: 104, name: "Liam Smith", status: "online", avatar: null, lastActive: "Just now" },
-        { id: 105, name: "Isabella Brown", status: "offline", avatar: null, lastActive: "1d ago" },
-    ])
-
-    const [outgoingRequests, setOutgoingRequests] = useState([
-        {
-            id: 106,
-            name: "Mason Davis",
-            status: "online",
-            avatar: null,
-            lastActive: "Just now",
-            email: "mason@example.com",
-        },
-        {
-            id: 107,
-            name: "Sophia Miller",
-            status: "away",
-            avatar: null,
-            lastActive: "30m ago",
-            email: "sophia@example.com",
-        },
-        {
-            id: 108,
-            name: "Jacob Garcia",
-            status: "online",
-            avatar: null,
-            lastActive: "Just now",
-            email: "jacob@example.com",
-        },
-        {
-            id: 109,
-            name: "Olivia Taylor",
-            status: "offline",
-            avatar: null,
-            lastActive: "3h ago",
-            email: "olivia@example.com",
-        },
-        {
-            id: 110,
-            name: "Ethan Anderson",
-            status: "online",
-            avatar: null,
-            lastActive: "Just now",
-            email: "ethan@example.com",
-        },
-    ])
+    // Use the data from props with useState for local updates
+    const [friends, setFriends] = useState(initialFriends || [])
+    const [incomingRequests, setIncomingRequests] = useState(initialIncomingRequests || [])
+    const [outgoingRequests, setOutgoingRequests] = useState(initialOutgoingRequests || [])
+    const [blockedUsers, setBlockedUsers] = useState(initialBlockedUsers || [])
 
     // Listen for real-time friend request updates using Pusher
     useEffect(() => {
-        console.log("effect_triggered")
-        const currentUserId = auth.user.id;
+        const currentUserId = auth.user.id
 
         // Set up Pusher channel for friend requests
         const channel = window.Echo.private(`friend-requests.${currentUserId}`)
 
-        console.log("channel made: ", channel)
-
         // Listen for new friend requests
         channel.listen(".NewFriendRequest", (senderInfo) => {
-            const { requestId, senderId, name, status, avatar, lastOnline, email } = senderInfo;
-
-            console.log("listener triggered, request id: ", requestId)
+            const { senderId, name, status, avatar, lastOnline, email } = senderInfo
 
             const newRequest = {
-                id        : requestId,
-                senderId  : senderId,
-                name      : name,
-                status    : status,
-                avatar    : avatar,
+                senderId: senderId,
+                name: name,
+                status: status,
+                avatar: avatar,
                 lastActive: lastOnline,
-                email     : email,
+                email: email,
             }
-
-            console.log("new request: ", newRequest)
 
             setIncomingRequests((prev) => [newRequest, ...prev])
 
-            console.log("incomingRequestsSet");
-
             // Show notification
             setNotification({
-                type   : "success",
+                type: "success",
                 message: `New friend request from ${senderInfo.name}`,
             })
-
-            console.log("notificationSet")
 
             setTimeout(() => setNotification(null), 5000)
         })
@@ -181,14 +111,9 @@ export default function Friends({ auth }) {
         //
         // Listen for friend request rejected/canceled events
         channel.listen(".RemovedFriendRequest", (removalData) => {
-
-            console.log("made it errrrrrrrrrrrre, removal data: ", removalData)
-
-            console.log("req id is: ", removalData)
-
-            if(removalData.deletionType === "rejection") {
+            if (removalData.deletionType === "rejection") {
                 // Remove from outgoing requests
-                setOutgoingRequests((prev) => prev.filter((request) => request.id !== removalData.requestId))
+                setOutgoingRequests((prev) => prev.filter((request) => request.recipientId !== removalData.recipientId))
 
                 setNotification({
                     type: "error",
@@ -196,9 +121,8 @@ export default function Friends({ auth }) {
                 })
             }
 
-            if(removalData.deletionType === "cancellation") {
-                console.log("made itttttt")
-                setIncomingRequests((prev) => prev.filter((request) => request.id !== removalData.requestId))
+            if (removalData.deletionType === "cancellation") {
+                setIncomingRequests((prev) => prev.filter((request) => request.senderId !== removalData.senderId))
             }
 
             setTimeout(() => setNotification(null), 5000)
@@ -206,9 +130,9 @@ export default function Friends({ auth }) {
 
         // Cleanup function
         return () => {
-            channel.stopListening("NewFriendRequest")
+            channel.stopListening(".NewFriendRequest")
             // channel.stopListening("FriendRequestAccepted")
-            channel.stopListening("FriendRequestRejected")
+            channel.stopListening(".RemovedFriendRequest")
         }
     }, [auth.user.id])
 
@@ -226,11 +150,14 @@ export default function Friends({ auth }) {
         request.name.toLowerCase().includes(searchTerm.toLowerCase()),
     )
 
+    const filteredBlockedUsers = blockedUsers.filter((user) => user.name.toLowerCase().includes(searchTerm.toLowerCase()))
+
     // Calculate total pages
     const totalPages = {
         friends: Math.ceil(filteredFriends.length / itemsPerPage),
         incoming: Math.ceil(filteredIncomingRequests.length / itemsPerPage),
         outgoing: Math.ceil(filteredOutgoingRequests.length / itemsPerPage),
+        blocked: Math.ceil(filteredBlockedUsers.length / itemsPerPage),
     }
 
     // Get current items
@@ -242,6 +169,8 @@ export default function Friends({ auth }) {
     const currentFriends = getCurrentItems(filteredFriends, currentPage.friends)
     const currentIncomingRequests = getCurrentItems(filteredIncomingRequests, currentPage.incoming)
     const currentOutgoingRequests = getCurrentItems(filteredOutgoingRequests, currentPage.outgoing)
+
+    const currentBlockedUsers = getCurrentItems(filteredBlockedUsers, currentPage.blocked)
 
     // Handle page change
     const handlePageChange = (tab, newPage) => {
@@ -280,10 +209,21 @@ export default function Friends({ auth }) {
         }
     }
 
+    // Add the getSearchPlaceholder function after the getStatusColor function
+    // Get search placeholder based on active tab
+    const getSearchPlaceholder = () => {
+        if (activeTab === "friends") {
+            return "Search friends..."
+        } else if (activeTab === "requests") {
+            return requestsSubTab === "incoming" ? "Search incoming requests..." : "Search outgoing requests..."
+        } else if (activeTab === "blocked") {
+            return "Search blocked users..."
+        }
+        return "Search..."
+    }
+
     // Handle message user
     const handleMessageUser = (userId) => {
-        // In a real app, this would navigate to the chat with this user
-        console.log(`Navigate to chat with user ${userId}`)
         window.location.href = `/chat/${userId}`
     }
 
@@ -309,113 +249,112 @@ export default function Friends({ auth }) {
     }
 
     // Handle accept request
-    const handleAcceptRequest = (userId) => {
+    const handleAcceptRequest = (senderId) => {
         setIsProcessing(true)
-        // Simulate API call
+        // Implement API call to accept friend request
         setTimeout(() => {
-            const request = incomingRequests.find((req) => req.id === userId)
+            const request = incomingRequests.find((req) => req.senderId === senderId)
             if (request) {
                 // Add to friends list with a new ID
                 setFriends([...friends, { ...request, id: friends.length + 1 }])
                 // Remove from requests
-                setIncomingRequests(incomingRequests.filter((req) => req.id !== userId))
+                setIncomingRequests(incomingRequests.filter((req) => req.senderId !== senderId))
             }
             setIsProcessing(false)
         }, 1000)
     }
 
     // Handle reject request
-    const handleRejectRequest = (requestId, userName) => {
+    const handleRejectRequest = (senderId, userName) => {
         setConfirmationData({
             title: "Reject Friend Request",
             message: `Are you sure you want to reject the friend request from ${userName}?`,
-            action: () => confirmRejectRequest(requestId),
+            action: () => handleRequestAction(senderId, auth.user.id, "rejection"),
         })
         setShowConfirmation(true)
     }
 
-    // Confirm reject request
-    const confirmRejectRequest = (requestId) => {
+    // Handle cancel outgoing request
+    const handleCancelRequest = (recipientId, userName) => {
+        setConfirmationData({
+            title: "Cancel Friend Request",
+            message: `Are you sure you want to cancel your friend request to ${userName}?`,
+            action: () => handleRequestAction(auth.user.id, recipientId, "cancellation"),
+        })
+        setShowConfirmation(true)
+    }
+
+    // Unified method to handle both rejection and cancellation
+    const handleRequestAction = (senderId, recipientId, deletionType) => {
         setIsProcessing(true)
 
-        console.log("request id for deletion issss: ", requestId);
-
-        router.delete(route('request.destroy', requestId), {
+        router.delete(route("friend-request.destroy", [senderId, recipientId]), {
             data: {
-                deletionType: "rejection"
+                deletionType: deletionType,
             },
             onSuccess: (page) => {
-                const { notification } = page.props;
-
-                console.log('notiii: ' + notification);
+                const { notification } = page.props
 
                 setNotification({
-                    type   : notification.type,
-                    message: notification.message
+                    type: notification.type,
+                    message: notification.message,
                 })
 
-                console.log('set notiiii')
-
-                notification.statusCode === 200 &&
-                setIncomingRequests(incomingRequests.filter((request) => request.id !== requestId));
-
-                console.log('madeToEndOf onsuccess')
-
+                if (notification.statusCode === 200) {
+                    if (deletionType === "rejection") {
+                        setIncomingRequests(incomingRequests.filter((request) => request.senderId !== senderId))
+                    } else if (deletionType === "cancellation") {
+                        setOutgoingRequests(outgoingRequests.filter((request) => request.recipientId !== recipientId))
+                    }
+                }
             },
             onError: (errors) => {
-                console.log('didnt make it cuh')
                 setNotification({
                     type: "error",
-                    message: errors?.recipientEmail || `Failed to reject friend request.`,
+                    message:
+                        errors?.recipientEmail || `Failed to ${deletionType === "rejection" ? "reject" : "cancel"} friend request.`,
                 })
                 setTimeout(() => setNotification(null), 5000)
             },
             onFinish: () => {
-                console.log('finisheddddd')
-
                 setIsProcessing(false)
                 setShowConfirmation(false)
             },
         })
     }
 
-    // Handle cancel outgoing request
-    const handleCancelRequest = (requestId, userName) => {
-
+    // Add the handleUnblockUser and confirmUnblockUser functions after the handleRequestAction function
+    // Handle unblock user
+    const handleUnblockUser = (userId, userName) => {
         setConfirmationData({
-            title: "Cancel Friend Request",
-            message: `Are you sure you want to cancel your friend request to ${userName}?`,
-            action: () => confirmCancelRequest(requestId),
+            title: "Unblock User",
+            message: `Are you sure you want to unblock ${userName}?`,
+            action: () => confirmUnblockUser(userId),
         })
         setShowConfirmation(true)
     }
 
-    // Confirm cancel outgoing request
-    const confirmCancelRequest = (requestId) => {
+    // Confirm unblock user
+    const confirmUnblockUser = (userId) => {
         setIsProcessing(true)
 
-        console.log("request id for deletion is: ", requestId);
-
-        router.delete(route('request.destroy', requestId), {
-            data: {
-                deletionType: "cancellation"
-            },
+        router.delete(route("user.unblock", userId), {
             onSuccess: (page) => {
-                const { notification } = page.props;
+                const { notification } = page.props
 
                 setNotification({
-                    type   : notification.type,
-                    message: notification.message
+                    type: notification.type,
+                    message: notification.message,
                 })
 
-                notification.statusCode === 200 &&
-                    setOutgoingRequests(outgoingRequests.filter((request) => request.id !== requestId));
-
+                if (notification.statusCode === 200) {
+                    setBlockedUsers(blockedUsers.filter((user) => user.id !== userId))
+                }
             },
             onError: (errors) => {
                 setNotification({
                     type: "error",
-                    message: errors?.recipientEmail || `Failed to remove friend request.`,
+                    message: errors?.message || "Failed to unblock user.",
                 })
                 setTimeout(() => setNotification(null), 5000)
             },
@@ -434,9 +373,8 @@ export default function Friends({ auth }) {
         setIsProcessing(true)
 
         router.post(
-            window.route("request.store"),
+            route("friend-request.store"),
             {
-                requestType: "friend",
                 recipientEmail: friendEmail,
             },
             {
@@ -449,18 +387,20 @@ export default function Friends({ auth }) {
                     })
 
                     if (notification.statusCode === 201) {
-                        const { request } = page.props
+                        const { friendRequest } = page.props
 
-                        const { requestId, recipientName, recipientStatus, recipientAvatar, recipientLastOnline } = request;
+                        const { recipientId, recipientName, recipientStatus, recipientAvatar, recipientLastOnline } = friendRequest
 
                         const newOutgoingRequest = {
-                            id        : requestId,
-                            name      : recipientName,
-                            email     : friendEmail,
-                            status    : recipientStatus,
-                            avatar    : recipientAvatar,
+                            recipientId: recipientId,
+                            name: recipientName,
+                            email: friendEmail,
+                            status: recipientStatus,
+                            avatar: recipientAvatar,
                             lastActive: recipientLastOnline,
                         }
+
+                        console.log(newOutgoingRequest)
 
                         setOutgoingRequests((prev) => [newOutgoingRequest, ...prev])
 
@@ -513,12 +453,12 @@ export default function Friends({ auth }) {
                                     <div className="relative">
                                         <input
                                             type="text"
-                                            placeholder="Search friends..."
+                                            placeholder={getSearchPlaceholder()}
                                             value={searchTerm}
                                             onChange={(e) => {
                                                 setSearchTerm(e.target.value)
                                                 // Reset to first page when searching
-                                                setCurrentPage({ friends: 1, incoming: 1, outgoing: 1 })
+                                                setCurrentPage({ friends: 1, incoming: 1, outgoing: 1, blocked: 1 })
                                             }}
                                             className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-48 md:w-64"
                                         />
@@ -579,7 +519,7 @@ export default function Friends({ auth }) {
 
                             {/* Main Tabs */}
                             <div className="border-b border-gray-200 mb-6">
-                                <div className="flex space-x-8">
+                                <div className="flex">
                                     <button
                                         onClick={() => handleTabChange("friends")}
                                         className={`py-4 px-1 border-b-2 font-medium text-sm ${
@@ -595,13 +535,23 @@ export default function Friends({ auth }) {
                                             handleTabChange("requests")
                                             setRequestsSubTab("incoming") // Default to incoming when switching to requests
                                         }}
-                                        className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                                        className={`py-4 px-1 border-b-2 font-medium text-sm ml-8 ${
                                             activeTab === "requests"
                                                 ? "border-blue-500 text-blue-600"
                                                 : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                                         }`}
                                     >
                                         Requests ({filteredIncomingRequests.length + filteredOutgoingRequests.length})
+                                    </button>
+                                    <button
+                                        onClick={() => handleTabChange("blocked")}
+                                        className={`py-4 px-1 border-b-2 font-medium text-sm ml-auto ${
+                                            activeTab === "blocked"
+                                                ? "border-blue-500 text-blue-600"
+                                                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                                        }`}
+                                    >
+                                        Blocked ({filteredBlockedUsers.length})
                                     </button>
                                 </div>
                             </div>
@@ -762,7 +712,7 @@ export default function Friends({ auth }) {
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                     {currentIncomingRequests.map((request) => (
                                                         <div
-                                                            key={request.id}
+                                                            key={request.senderId}
                                                             className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors"
                                                         >
                                                             <div className="flex items-center">
@@ -787,20 +737,21 @@ export default function Friends({ auth }) {
                                                                 <div className="ml-3">
                                                                     <div className="font-medium text-gray-900">{request.name}</div>
                                                                     <div className="text-xs text-gray-500">{request.lastActive}</div>
+                                                                    {request.email && <div className="text-xs text-gray-500">{request.email}</div>}
                                                                 </div>
                                                             </div>
 
                                                             {/* Action buttons */}
                                                             <div className="flex space-x-2">
                                                                 <button
-                                                                    onClick={() => handleAcceptRequest(request.id)}
+                                                                    onClick={() => handleAcceptRequest(request.senderId)}
                                                                     className="p-2 text-green-600 hover:bg-green-50 rounded-full transition-colors"
                                                                     title="Accept"
                                                                 >
                                                                     <Check size={18} />
                                                                 </button>
                                                                 <button
-                                                                    onClick={() => handleRejectRequest(request.id, request.name)}
+                                                                    onClick={() => handleRejectRequest(request.senderId, request.name)}
                                                                     className="p-2 text-red-600 hover:bg-red-50 rounded-full transition-colors"
                                                                     title="Reject"
                                                                 >
@@ -872,9 +823,9 @@ export default function Friends({ auth }) {
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                     {currentOutgoingRequests.map((request) => (
                                                         <div
-                                                            key={request.id}
+                                                            key={request.recipientId}
                                                             className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors"
-                                                            onMouseEnter={() => setHoveredUser(request.id)}
+                                                            onMouseEnter={() => setHoveredUser(request.recipientId)}
                                                             onMouseLeave={() => setHoveredUser(null)}
                                                         >
                                                             <div className="flex items-center">
@@ -899,6 +850,10 @@ export default function Friends({ auth }) {
                                                                 <div className="ml-3">
                                                                     <div className="font-medium text-gray-900">{request.name}</div>
                                                                     <div className="text-xs text-gray-500">
+                                    <span className="flex items-center">
+                                      <Clock size={12} className="mr-1" />
+                                      Pending
+                                    </span>
                                                                     </div>
                                                                     {request.email && <div className="text-xs text-gray-500">{request.email}</div>}
                                                                 </div>
@@ -906,7 +861,7 @@ export default function Friends({ auth }) {
 
                                                             {/* Cancel button */}
                                                             <button
-                                                                onClick={() => handleCancelRequest(request.id, request.name)}
+                                                                onClick={() => handleCancelRequest(request.recipientId, request.name)}
                                                                 className="p-2 text-red-600 hover:bg-red-50 rounded-full transition-colors"
                                                                 title="Cancel Request"
                                                             >
@@ -962,6 +917,98 @@ export default function Friends({ auth }) {
                                                 </div>
                                             )}
                                         </>
+                                    )}
+                                </div>
+                            )}
+                            {/* Blocked Users Tab */}
+                            {activeTab === "blocked" && (
+                                <div>
+                                    {filteredBlockedUsers.length === 0 ? (
+                                        <div className="text-center py-8 text-gray-500">
+                                            {searchTerm ? "No blocked users match your search" : "You haven't blocked any users yet."}
+                                        </div>
+                                    ) : (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            {currentBlockedUsers.map((user) => (
+                                                <div
+                                                    key={user.id}
+                                                    className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors"
+                                                >
+                                                    <div className="flex items-center">
+                                                        <div className="relative">
+                                                            {user.avatar ? (
+                                                                <img
+                                                                    src={user.avatar || "/placeholder.svg"}
+                                                                    alt={user.name}
+                                                                    className="w-12 h-12 rounded-full object-cover"
+                                                                />
+                                                            ) : (
+                                                                <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center">
+                                                                    <User size={24} className="text-gray-600" />
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        <div className="ml-3">
+                                                            <div className="font-medium text-gray-900">{user.name}</div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Unblock button */}
+                                                    <button
+                                                        onClick={() => handleUnblockUser(user.id, user.name)}
+                                                        className="p-2 text-green-600 hover:bg-green-50 rounded-full transition-colors"
+                                                        title="Unblock User"
+                                                    >
+                                                        <Check size={18} />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* Pagination for Blocked Users */}
+                                    {totalPages.blocked > 1 && (
+                                        <div className="flex justify-between items-center mt-6">
+                                            <div className="text-sm text-gray-700">
+                                                Page {currentPage.blocked} of {totalPages.blocked}
+                                            </div>
+                                            <div className="flex space-x-2">
+                                                <button
+                                                    onClick={() => handlePageChange("blocked", 1)}
+                                                    disabled={currentPage.blocked === 1}
+                                                    className="px-2 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    title="First Page"
+                                                >
+                                                    <ChevronsLeft size={16} />
+                                                </button>
+                                                <button
+                                                    onClick={() => handlePageChange("blocked", Math.max(1, currentPage.blocked - 1))}
+                                                    disabled={currentPage.blocked === 1}
+                                                    className="px-2 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    title="Previous Page"
+                                                >
+                                                    <ChevronLeft size={16} />
+                                                </button>
+                                                <button
+                                                    onClick={() =>
+                                                        handlePageChange("blocked", Math.min(totalPages.blocked, currentPage.blocked + 1))
+                                                    }
+                                                    disabled={currentPage.blocked === totalPages.blocked}
+                                                    className="px-2 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    title="Next Page"
+                                                >
+                                                    <ChevronRight size={16} />
+                                                </button>
+                                                <button
+                                                    onClick={() => handlePageChange("blocked", totalPages.blocked)}
+                                                    disabled={currentPage.blocked === totalPages.blocked}
+                                                    className="px-2 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    title="Last Page"
+                                                >
+                                                    <ChevronsRight size={16} />
+                                                </button>
+                                            </div>
+                                        </div>
                                     )}
                                 </div>
                             )}

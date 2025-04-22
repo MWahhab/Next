@@ -24,19 +24,12 @@ class NewFriendRequest implements ShouldBroadcastNow
     private int  $recipientId;
 
     /**
-     * @var int  $requestId   References the id of the request being made
-     */
-    private int  $requestId;
-
-
-    /**
      * Create a new event instance.
      */
-    public function __construct(User $sender, int $recipientId, int $requestId)
+    public function __construct(User $sender, int $recipientId)
     {
         $this->sender      = $sender;
         $this->recipientId = $recipientId;
-        $this->requestId   = $requestId;
     }
 
     /**
@@ -59,7 +52,6 @@ class NewFriendRequest implements ShouldBroadcastNow
     public function broadcastWith(): array
     {
         return [
-            'requestId'  => $this->requestId,
             'senderId'   => $this->sender->id,
             'name'       => $this->sender->name,
             'status'     => $this->sender->status,

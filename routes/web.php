@@ -4,7 +4,7 @@ use App\Http\Controllers\ChatController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RelationshipController;
-use App\Http\Controllers\RequestController;
+use App\Http\Controllers\FriendRequestController;
 use App\Http\Controllers\TaskAssigneeController;
 use App\Http\Controllers\TaskController;
 use Illuminate\Foundation\Application;
@@ -36,9 +36,12 @@ Route::middleware('auth')->group(function () {
     Route::resource('/chat', ChatController::class);
     Route::resource('/message', MessageController::class);
     Route::resource('/relationship', RelationshipController::class);
-    Route::resource('/request', RequestController::class);
     Route::resource('/task_assignee', TaskAssigneeController::class);
     Route::resource('/task', TaskController::class);
+
+    Route::put('/friend-request', [FriendRequestController::class, 'store'])->name('friend-request.store');
+    Route::delete('/friend-request/{sender}/{recipient}', [FriendRequestController::class, 'destroy'])
+        ->name('friend-request.destroy');
 });
 
 require __DIR__.'/auth.php';

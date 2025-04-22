@@ -2,9 +2,7 @@
 
 namespace App\Http\Requests;
 
-use App\Enums\RequestType;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rules\Enum;
 
 class StoreUserRequest extends FormRequest
 {
@@ -24,7 +22,6 @@ class StoreUserRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'requestType'    => ['required', 'string', new Enum(RequestType::class)],
             'recipientEmail' => ['required', 'string', 'email']
         ];
     }
