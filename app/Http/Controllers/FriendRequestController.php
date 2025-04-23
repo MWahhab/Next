@@ -31,20 +31,16 @@ class FriendRequestController extends Controller
     ): \Illuminate\Http\RedirectResponse
     {
         if(!$sender->exists | !$recipient->exists) {
-            abort(404);
+            abort(404, "Cannot delete friend request as invalid sender/recipient object fetched.");
         };
 
         $validatedDeletionType = $request->validated();
 
         $deletionTypeEnum = FriendRequestDeletionType::from($validatedDeletionType["deletionType"]);
 
-        $message =
+        $deletionInfo =
             $requestService->deleteFriendRequest($sender, $recipient, $deletionTypeEnum);
 
-        return back()->with([
-            'statusCode' => 200,
-            'type'       => "success",
-            'message'    => $message
-        ]);
+        return back()->with($deletionInfo);
     }
 }

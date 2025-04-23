@@ -16,7 +16,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property-read User $sender    Refers to the details of the user who sent the request
  * @property-read User $recipient Refers to the details of the user who received the request
  *
- * @method static Builder requestsForUser(int $userId) Returns a query of the user's requests.
+ * @method static Builder requestsForUser(int $userId)         Returns a query of the user's requests.
+ * @method static Builder betweenUsers(int $user1Id, int $user2Id) Returns a query of request records between two users
  */
 class FriendRequest extends Model
 {
@@ -60,6 +61,26 @@ class FriendRequest extends Model
     }
 
     /**
+     * Returns a query of any friend request records between these two users
+     *
+     * @param  Builder $query   Refers to the query builder
+     * @param  int     $user1Id Refers to the id of one user
+     * @param  int     $user2Id Refers to the id of another user
+     * @return Builder          Returns a query of any friend request records between these two users
+     */
+    public function scopeBetweenUsers(Builder $query, int $user1Id, int $user2Id): Builder
+    {
+        return $query->where([
+            'sender_id'    => $user1Id,
+            'recipient_id' => $user2Id,
+        ])
+        ->orWhere([
+            'sender_id'    => $user2Id,
+            'recipient_id' => $user1Id,
+        ]);
+    }
+
+    /**
      * Deletes record and fires off event listener. Avoids delete() issue with pivot tables in eloquent
      *
      * @param  FriendRequestDeletionType $type Refers to whether the request deletion was a rejection or cancellation
@@ -87,8 +108,8 @@ class FriendRequest extends Model
     {
         static::created(function ($request) {
             broadcast(new NewFriendRequest(
-                $request->sender,
-                $request->recipient->id
+                $request->recipient->id,
+                $request->sender
             ));
         });
     }

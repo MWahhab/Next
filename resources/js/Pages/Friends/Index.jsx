@@ -84,32 +84,40 @@ export default function Friends({
             setTimeout(() => setNotification(null), 5000)
         })
 
-        // // Listen for friend request accepted events
-        // channel.listen("FriendRequestAccepted", (data) => {
-        //     // Add to friends list
-        //     const newFriend = {
-        //         id: data.user.id,
-        //         name: data.user.name,
-        //         status: "online", // Default status
-        //         avatar: data.user.avatar,
-        //         last_online: "Just now",
-        //     }
-        //
-        //     setFriends((prev) => [newFriend, ...prev])
-        //
-        //     // Remove from outgoing requests
-        //     setOutgoingRequests((prev) => prev.filter((request) => request.email !== data.user.email))
-        //
-        //     // Show notification
-        //     setNotification({
-        //         type: "success",
-        //         message: `${data.user.name} accepted your friend request`,
-        //     })
-        //
-        //     setTimeout(() => setNotification(null), 5000)
-        // })
-        //
-        // Listen for friend request rejected/canceled events
+        // Listen for friend request accepted events
+        channel.listen(".AcceptedFriendRequest", (newFriendData) => {
+
+            console.log("made it?")
+            console.log("acepted friend data: ", newFriendData)
+            const {id, name, email, status, last_online} = newFriendData;
+
+            // Add to friends list
+            const newFriend = {
+                id,
+                name,
+                email,
+                status,
+                avatar: newFriendData.avatar ?? null,
+                last_online,
+            }
+
+            console.log("newly added friend: ", newFriend)
+
+            setFriends((prev) => [newFriend, ...prev])
+
+            // Remove from outgoing requests
+            setOutgoingRequests((prev) => prev.filter((request) => request.id !== id))
+
+            // Show notification
+            setNotification({
+                type: "success",
+                message: `${name} accepted your friend request`,
+            })
+
+            setTimeout(() => setNotification(null), 5000)
+        })
+
+        //Listen for friend request rejected/canceled events
         channel.listen(".RemovedFriendRequest", (removalData) => {
             if (removalData.deletionType === "rejection") {
                 // Remove from outgoing requests
@@ -131,7 +139,7 @@ export default function Friends({
         // Cleanup function
         return () => {
             channel.stopListening(".NewFriendRequest")
-            // channel.stopListening("FriendRequestAccepted")
+            channel.stopListening(".FriendRequestAccepted")
             channel.stopListening(".RemovedFriendRequest")
         }
     }, [auth.user.id])
@@ -267,10 +275,12 @@ export default function Friends({
     }
 
     // Handle accept request
-    const handleAcceptRequest = (requestId) => {
+    const handleAcceptRequest = (senderId) => {
         setIsProcessing(true)
 
-        router.post(route("friend-request.accept", requestId), {
+        router.post(route('relationship.store', senderId), {
+                relationshipType: "friends",
+            }, {
             onSuccess: (page) => {
                 const { notification, friend } = page.props
 
@@ -279,11 +289,12 @@ export default function Friends({
                     message: notification.message,
                 })
 
-                if (notification.statusCode === 200 && friend) {
+                if (notification.statusCode == 201 && friend) {
+                    console.log(friend)
                     // Add to friends list
                     setFriends((prev) => [friend, ...prev])
                     // Remove from requests
-                    setIncomingRequests(incomingRequests.filter((req) => req.id !== requestId))
+                    setIncomingRequests(incomingRequests.filter((req) => req.id !== senderId))
                 }
             },
             onError: (errors) => {

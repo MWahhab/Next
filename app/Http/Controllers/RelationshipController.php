@@ -2,10 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreRelationshipRequest;
 use App\Models\Relationship;
+use App\Models\User;
 use App\Services\FriendRequestService;
 use App\Services\RelationshipService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Inertia\Response;
 use Inertia\Inertia;
 
 class RelationshipController extends Controller
@@ -13,7 +17,7 @@ class RelationshipController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(RelationshipService $relationshipService, FriendRequestService $friendRequestService)
+    public function index(RelationshipService $relationshipService, FriendRequestService $friendRequestService): Response
     {
         $relationships = $relationshipService->getRelationships();
 
@@ -33,9 +37,17 @@ class RelationshipController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store( StoreRelationshipRequest $request, User $otherUser, RelationshipService $relationshipService): RedirectResponse
     {
-        //
+        if(!$otherUser->exists) {
+            abort(400, "Invalid user passed to store relationship.");
+        }
+
+        $validatedRequest = $request->validated();
+
+        $response = $relationshipService->storeRelationship($validatedRequest, $otherUser);
+
+        return back()->with($response);
     }
 
     /**

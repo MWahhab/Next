@@ -3,11 +3,12 @@
 namespace App\Services;
 
 use App\Enums\FriendRequestDeletionType;
+use App\Enums\RelationshipType;
 use App\Models\FriendRequest;
+use App\Models\Relationship;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
 
 class FriendRequestService
@@ -37,8 +38,8 @@ class FriendRequestService
                 ];
             })
             ->groupBy("requestType")
-            ->map(function ($requestType) {
-                return $requestType->pluck("otherPerson");
+            ->map(function ($requestData) {
+                return $requestData->pluck("otherPerson");
             })
             ->toArray();
     }
@@ -55,7 +56,29 @@ class FriendRequestService
             abort(500, "Issue with storing validated friend request data");
         }
 
-        $recipient = User::where('email', $validatedData['recipientEmail'])->first();
+        $recipient = User::where('email', $validatedData['recipientEmail'])->firstOrFail();
+
+        if(FriendRequest::betweenUsers(Auth::id(), $recipient->id)->exists()) {
+            return [
+                'statusCode' => 409,
+                'type'       => "failure",
+                'message'    => __("friend_request.already_exists", ["name" => $recipient->name]),
+            ];
+        }
+
+        $existingRelationship = Relationship::betweenUsers(Auth::id(), $recipient->id)->first();
+
+        if($existingRelationship) {
+            $isBlocked = $existingRelationship->status == RelationshipType::BLOCKED->value;
+
+            $messageKey = $isBlocked ? "friend_request.blocked" : "friend_request.already_friends";
+
+            return [
+                'statusCode' => 409,
+                'type'       => "failure",
+                'message'    => __($messageKey, ["name" => $recipient->name])
+            ];
+        }
 
         if(!$recipient) {
             return [
@@ -69,7 +92,7 @@ class FriendRequestService
             return [
                 'statusCode' => 422,
                 'type'       => "failure",
-                'message'    => __("friend_request.user_is_sender"),
+                'message'    => __("friend_request.sent_to_self"),
             ];
         }
 

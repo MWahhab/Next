@@ -29,7 +29,6 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-    Route::get('/friendsList', function () { return Inertia::render('Friends/Index'); }) ;
     Route::get('/mockChat', function () { return Inertia::render('Chat/Chat'); });
 
 
@@ -42,6 +41,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/friend-request', [FriendRequestController::class, 'store'])->name('friend-request.store');
     Route::delete('/friend-request/{sender}/{recipient}', [FriendRequestController::class, 'destroy'])
         ->name('friend-request.destroy');
+
+    Route::post('/relationship/{otherUser}', [RelationshipController::class, 'store'])
+        ->name('relationship.store');
 });
 
 require __DIR__.'/auth.php';

@@ -61,4 +61,14 @@ class User extends Authenticatable
             'status'            => UserStatusType::class
         ];
     }
+
+    /**
+     * Fetches how long ago the user was logged in
+     *
+     * @return string
+     */
+    public function getLastOnline(): string
+    {
+        return $this->last_online->diffForHumans();
+    }
 }
