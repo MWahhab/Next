@@ -15,6 +15,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * @property-read User $sender    Refers to the details of the user who sent the request
  * @property-read User $recipient Refers to the details of the user who received the request
+ *
+ * @method static Builder requestsForUser(int $userId) Returns a query of the user's requests.
  */
 class FriendRequest extends Model
 {
@@ -44,11 +46,11 @@ class FriendRequest extends Model
     }
 
     /**
-     * Returns a query of the user's friend requests. Requires chained method like ->get() as a follow-up
+     * Returns a query of the user's friend requests. Requires chained methods like ->get() as a follow-up
      *
-     * @param  Builder $query
+     * @param  Builder $query  Refers to the query builder
      * @param  int     $userId Refers to the id of the user that's having their requests queried
-     * @return mixed
+     * @return Builder         Returns a query of all the user's requests
      */
     public function scopeRequestsForUser(Builder $query, int $userId): Builder
     {

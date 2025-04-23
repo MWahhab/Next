@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -16,6 +17,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * @property-read User $user1 Refers to the User data of User1
  * @property-read User $user2 Refers to the User data of User2
+ *
+ * @method static Builder relationshipsForUser(int $userId) Returns a query of the user's relationships.
  */
 class Relationship extends Model
 {
@@ -43,5 +46,19 @@ class Relationship extends Model
     public function user2(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_2_id');
+    }
+
+    /**
+     * Returns a query of the user's relationships. Requires chained methods like ->get() as a follow-up
+     *
+     * @param  Builder $query  Refers to the query builder
+     * @param  int     $userId Refers to the id of the user whose friends are being queried
+     * @return Builder         Returns a query of the user's relationships
+     */
+    public function scopeRelationshipsForUser(Builder $query, int $userId): Builder
+    {
+        return $query->with(['user1', 'user2'])
+            ->where('user_1_id', $userId)
+            ->orWhere('user_2_id', $userId);
     }
 }

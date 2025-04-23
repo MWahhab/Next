@@ -17,9 +17,7 @@ class RelationshipService
     {
         $currentUserId = Auth::id();
 
-        return Relationship::with(['user1', 'user2'])
-            ->where('user_1_id', $currentUserId)
-            ->orWhere('user_2_id', $currentUserId)
+        return Relationship::relationshipsForUser($currentUserId)
             ->get()
             ->map(function ($relation) use ($currentUserId) {
                 return [
