@@ -2,7 +2,7 @@
 
 namespace App\Enums;
 
-enum FriendRequestDeletionTypeEnum: string
+enum FriendRequestDeletionType: string
 {
     case REJECTION    = "rejection";
     case CANCELLATION = "cancellation";

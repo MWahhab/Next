@@ -2,7 +2,7 @@
 
 namespace App\Enums;
 
-enum DaysOfWeekEnum: string
+enum DayOfWeek: string
 {
     case MONDAY    = "monday";
     case TUESDAY   = "tuesday";

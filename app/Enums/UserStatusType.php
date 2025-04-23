@@ -2,7 +2,7 @@
 
 namespace App\Enums;
 
-enum UserStatusEnum: string
+enum UserStatusType: string
 {
     case ONLINE    = "online";
     case OFFLINE   = "offline";

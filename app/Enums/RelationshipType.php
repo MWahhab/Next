@@ -2,7 +2,7 @@
 
 namespace App\Enums;
 
-enum RelationshipStatusEnum: string
+enum RelationshipType: string
 {
     case FRIENDS = "friends";
     case BLOCKED = "blocked";

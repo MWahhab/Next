@@ -2,7 +2,7 @@
 
 namespace App\Enums;
 
-enum ImportanceEnum: string
+enum ImportanceType: string
 {
     case LOW    = "low";
     case MEDIUM = "medium";

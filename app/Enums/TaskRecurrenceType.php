@@ -2,7 +2,7 @@
 
 namespace App\Enums;
 
-enum RecurrenceTypeEnum: string
+enum TaskRecurrenceType: string
 {
     case INCREMENTAL = "incremental";
     case DAILY       = "daily";
