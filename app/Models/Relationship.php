@@ -26,7 +26,7 @@ class Relationship extends Model
     ];
 
     /**
-     * Fetches the data of user 1
+     * Fetches the data of user 1. In the case of a block, this is the user that initiated the block.
      *
      * @return BelongsTo
      */
@@ -36,7 +36,7 @@ class Relationship extends Model
     }
 
     /**
-     * Fetches the data of user 2
+     * Fetches the data of user 2. In the case of a block, this is the user that has gotten blocked.
      *
      * @return BelongsTo
      */

@@ -4,7 +4,7 @@ namespace app\Services;
 
 use App\Models\Relationship;
 use Illuminate\Support\Facades\Auth;
-use App\Enums\RelationshipStatus;
+use App\Enums\RelationshipType as RelationEnum;
 
 class RelationshipService
 {
@@ -36,6 +36,29 @@ class RelationshipService
                 });
             })
             ->toArray();
+
+    }
+
+    /**
+     * Stores a new relationship
+     *
+     * @param  array $validatedRequest Refers to the validated request data
+     * @return array
+     */
+    public function storeRelationship(array $validatedRequest): array
+    {
+        if(empty($validatedData)) {
+            abort(500, "Issue with storing validated friend request data");
+        }
+
+        $isBlocked = $validatedRequest['relationshipType'] === RelationEnum::BLOCKED->value;
+
+        return Relationship::create([
+            'user_1_id' => $isBlocked ? Auth::id() : $validatedRequest['blockedUserId'],
+            'user_2_id' => $isBlocked ? $validatedRequest['initiatorId'] : Auth::id(),
+            'status'    => $validatedRequest['relationshipType']
+        ]);
+
 
     }
 }

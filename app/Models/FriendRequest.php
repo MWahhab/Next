@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\FriendRequestDeletionType;
 use App\Events\NewFriendRequest;
 use App\Events\RemovedFriendRequest;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -40,6 +41,20 @@ class FriendRequest extends Model
     public function recipient(): BelongsTo
     {
         return $this->belongsTo(User::class, 'recipient_id');
+    }
+
+    /**
+     * Returns a query of the user's friend requests. Requires chained method like ->get() as a follow-up
+     *
+     * @param  Builder $query
+     * @param  int     $userId Refers to the id of the user that's having their requests queried
+     * @return mixed
+     */
+    public function scopeRequestsForUser(Builder $query, int $userId): Builder
+    {
+        return $query->with(['sender', 'recipient'])
+            ->where('sender_id', $userId)
+            ->orWhere('recipient_id', $userId);
     }
 
     /**

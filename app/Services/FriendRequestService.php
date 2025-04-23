@@ -21,9 +21,7 @@ class FriendRequestService
     {
         $userId = Auth::id();
 
-        return FriendRequest::with(["sender", "recipient"])
-            ->where("sender_id", $userId)
-            ->orWhere("recipient_id", $userId)
+        return FriendRequest::requestsForUser($userId)
             ->get()
             ->map(function ($friendRequest) use ($userId) {
                 $isSender = $friendRequest->sender_id === $userId;
@@ -63,7 +61,7 @@ class FriendRequestService
             return [
                 'statusCode' => 400,
                 'type'       => "failure",
-                'message'    => "The user doesn't exist!",
+                'message'    => __("friend_request.user_nonexistent"),
             ];
         }
 
@@ -71,7 +69,7 @@ class FriendRequestService
             return [
                 'statusCode' => 422,
                 'type'       => "failure",
-                'message'    => "You cannot send a friend request to yourself!",
+                'message'    => __("friend_request.user_is_sender"),
             ];
         }
 
@@ -85,7 +83,7 @@ class FriendRequestService
         return array_merge([
             'statusCode' => 201,
             'type'       => "success",
-            'message'    => "Friend request sent to {$recipient->email}!"
+            'message'    => __("friend_request.sent", ["name" => $recipient->name]),
         ], $recipient->toArray());
     }
 
@@ -93,23 +91,28 @@ class FriendRequestService
      * Deletes a request
      * @param  User                      $sender       Refers to the user who made the friend request
      * @param  User                      $recipient    Refers to the user who received the friend request
-     * @param  FriendRequestDeletionType $deletionType Refers to whether the request removal was a rejection or cancellation
-     * @return string                                  Returns a message for the user
+     * @param  FriendRequestDeletionType $deletionType Refers to whether the request removal was a rejection or
+     * cancellation
+     * @return array                                   Returns an array containing deletion info, including status
      */
-    public function deleteFriendRequest(User $sender, User $recipient, FriendRequestDeletionType $deletionType): string
+    public function deleteFriendRequest(User $sender, User $recipient, FriendRequestDeletionType $deletionType): array
     {
         $friendRequest =
             FriendRequest::where('sender_id', $sender->id)->where('recipient_id', $recipient->id)->firstOrFail();
 
         $deletionMessage =  $deletionType == FriendRequestDeletionType::REJECTION ?
-            "Friend request from {$sender->name} rejected!" :
-            "Friend request to {$recipient->name} removed!";
+            __("friend_request.rejected", ["name" => $sender->name]) :
+            __("friend_request.cancelled", ["name" => $recipient->name]);
 
         /**
          * @var FriendRequest $friendRequest
          */
         $friendRequest->deleteWithEvent($deletionType);
 
-        return $deletionMessage;
+        return [
+            'statusCode' => 200,
+            'type'       => "success",
+            'message'    => $deletionMessage
+        ];
     }
 }
