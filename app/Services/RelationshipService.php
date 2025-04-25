@@ -2,6 +2,7 @@
 
 namespace app\Services;
 
+use App\Enums\RelationshipType;
 use App\Models\FriendRequest;
 use App\Models\Relationship;
 use App\Models\User;
@@ -50,8 +51,8 @@ class RelationshipService
      */
     public function storeRelationship(array $validatedRequest, User $otherUser): array
     {
-        $userId    = Auth::id();
-        $status    = $validatedRequest['relationshipType'];
+        $userId = Auth::id();
+        $status = $validatedRequest['relationshipType'];
 
         FriendRequest::betweenUsers($userId, $otherUser->id)->delete();
 
@@ -59,7 +60,11 @@ class RelationshipService
 
         $existingRelationships = Relationship::betweenUsers($userId, $otherUser->id)->get();
 
-        if ($isBlocked && $existingRelationships->isNotEmpty()) {
+        if ($existingRelationships->isNotEmpty()) {
+            if(!$isBlocked) {
+                abort(500, "There is already a relationship between both users.");
+            }
+
             if ($existingRelationships->count() > 1) {
                 abort(500, "Both users have already blocked one another");
             }
@@ -77,7 +82,7 @@ class RelationshipService
             }
         }
 
-        $newRelationship = Relationship::create([
+        Relationship::create([
             'user_1_id' => $userId,
             'user_2_id' => $otherUser->id,
             'status'    => $status,
@@ -89,11 +94,37 @@ class RelationshipService
             "statusCode"  => 201,
             "type"        => "success",
             "message"     => __($messageKey, ["name" => $otherUser->name])
-        ], $otherUser->makeHidden([
-            "forced_status",
-            "email_verified_at",
-            "created_at",
-            "updated_at"
-        ])->toArray());
+        ], $otherUser->toArray());
+    }
+
+    /**
+     * Removes an existing friend or block
+     *
+     * @param  User   $otherUser           Refers to the user being unfriended/unblocked
+     * @param  string $currentRelationship Refers to the current relationship between the two users
+     * @return array                       Returns a deletion response
+     */
+    public function deleteRelationship(User $otherUser, string $currentRelationship): array
+    {
+        $currentlyBlocked = $currentRelationship == RelationEnum::BLOCKED->value;
+
+        $relation = $currentlyBlocked ?
+            Relationship::blockBetween(Auth::id(), $otherUser->id)->first() :
+            Relationship::betweenUsers(Auth::id(), $otherUser->id)->first();
+
+        !$relation && abort(404, "Cannot delete nonexistent relationship");
+
+        $relation->listenerId = $otherUser->id;
+        $relation->removerId  = Auth::id();
+
+        $relation->delete();
+
+        $messageKey = $currentlyBlocked ? "relationship.unblocked" : "relationship.friend_deleted";
+
+        return [
+            "statusCode" => 200,
+            "type"       => "success",
+            "message"    => __($messageKey, ["name" => $otherUser->name])
+        ];
     }
 }

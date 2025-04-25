@@ -34,7 +34,7 @@ Route::middleware('auth')->group(function () {
 
     Route::resource('/chat', ChatController::class);
     Route::resource('/message', MessageController::class);
-    Route::resource('/relationship', RelationshipController::class);
+    Route::resource('/relationship', RelationshipController::class)->only("index");
     Route::resource('/task_assignee', TaskAssigneeController::class);
     Route::resource('/task', TaskController::class);
 
@@ -44,6 +44,8 @@ Route::middleware('auth')->group(function () {
 
     Route::post('/relationship/{otherUser}', [RelationshipController::class, 'store'])
         ->name('relationship.store');
+    Route::delete('/relationship/{otherUser}', [RelationshipController::class, 'destroy'])
+        ->name('relationship.destroy');
 });
 
 require __DIR__.'/auth.php';

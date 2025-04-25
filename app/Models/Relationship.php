@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+use App\Enums\RelationshipType;
 use App\Events\AcceptedFriendRequest;
+use App\Events\RemovedFriend;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -19,8 +21,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property-read User $user1 Refers to the User data of User1. In the case of a block, this user initiated the block.
  * @property-read User $user2 Refers to the User data of User2. In the case of a block, this user has gotten blocked.
  *
- * @method static Builder relationshipsForUser(int $userId)        Returns a query of the user's relationships.
- * @method static Builder betweenUsers(int $user1Id, int $user2Id) Returns a query of any relationships between 2 users
+ * @method static Builder relationshipsForUser(int $userId)            Returns a query of the user's relationships.
+ * @method static Builder betweenUsers(int $user1Id, int $user2Id)     Returns a query of any relations between 2 users
+ * @method static Builder blockBetween(int $blockerId, int $blockedID) Returns a query of a block between the two users
  */
 class Relationship extends Model
 {
@@ -85,12 +88,34 @@ class Relationship extends Model
             ]);
     }
 
+    /**
+     * @param  Builder $query     Refers to the query builder
+     * @param  int     $blockerId Refers to the ID of the blocker
+     * @param  int     $blockedId Refers to the ID of the person who's been blocked
+     * @return Builder            Returns a query of a block between the two users
+     */
+    public function scopeBlockExists(Builder $query, int $blockerId, int $blockedId): Builder
+    {
+        return $query->where([
+            'user_1_id' => $blockerId,
+            'user_2_id' => $blockedId,
+            'status'    => RelationshipType::BLOCKED->value
+        ]);
+    }
+
     protected static function booted(): void
     {
         static::created(function ($request) {
             broadcast(New AcceptedFriendRequest(
                 $request->user_2_id,
                 $request->user1
+            ));
+        });
+
+        static::deleted(function ($request) {
+            broadcast(New RemovedFriend(
+                $request->listenerId,
+                $request->removerId
             ));
         });
     }

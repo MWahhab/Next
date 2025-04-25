@@ -108,8 +108,8 @@ class FriendRequest extends Model
     {
         static::created(function ($request) {
             broadcast(new NewFriendRequest(
+                $request->sender,
                 $request->recipient->id,
-                $request->sender
             ));
         });
     }

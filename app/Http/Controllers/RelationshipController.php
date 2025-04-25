@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\DeleteRelationshipRequest;
 use App\Http\Requests\StoreRelationshipRequest;
 use App\Models\Relationship;
 use App\Models\User;
@@ -27,17 +28,13 @@ class RelationshipController extends Controller
     }
 
     /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
-
-    /**
      * Store a newly created resource in storage.
      */
-    public function store( StoreRelationshipRequest $request, User $otherUser, RelationshipService $relationshipService): RedirectResponse
+    public function store(
+        StoreRelationshipRequest $request,
+        User $otherUser,
+        RelationshipService $relationshipService
+    ): RedirectResponse
     {
         if(!$otherUser->exists) {
             abort(400, "Invalid user passed to store relationship.");
@@ -51,34 +48,22 @@ class RelationshipController extends Controller
     }
 
     /**
-     * Display the specified resource.
-     */
-    public function show(Relationship $relationship)
-    {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Relationship $relationship)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, Relationship $relationship)
-    {
-        //
-    }
-
-    /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Relationship $relationship)
+    public function destroy(
+        DeleteRelationshipRequest $request,
+        User $otherUser,
+        RelationshipService $relationshipService
+    ): RedirectResponse
     {
-        //
+        if(!$otherUser->exists) {
+            abort(400, "Invalid user passed to delete relationship.");
+        }
+
+        $validatedRequest = $request->validated();
+
+        $response = $relationshipService->deleteRelationship($otherUser, $validatedRequest["currentRelationship"]);
+
+        return back()->with($response);
     }
 }

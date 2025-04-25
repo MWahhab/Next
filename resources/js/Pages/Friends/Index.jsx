@@ -58,10 +58,12 @@ export default function Friends({
         const currentUserId = auth.user.id
 
         // Set up Pusher channel for friend requests
-        const channel = window.Echo.private(`friend-requests.${currentUserId}`)
+        const requestsChannel = window.Echo.private(`friend-requests.${currentUserId}`)
+
+        const friendsChannel = window.Echo.private(`friends.${currentUserId}`)
 
         // Listen for new friend requests
-        channel.listen(".NewFriendRequest", (senderInfo) => {
+        requestsChannel.listen(".NewFriendRequest", (senderInfo) => {
             const { senderId, name, status, avatar, lastOnline, email } = senderInfo
 
             const newRequest = {
@@ -85,10 +87,7 @@ export default function Friends({
         })
 
         // Listen for friend request accepted events
-        channel.listen(".AcceptedFriendRequest", (newFriendData) => {
-
-            console.log("made it?")
-            console.log("acepted friend data: ", newFriendData)
+        requestsChannel.listen(".AcceptedFriendRequest", (newFriendData) => {
             const {id, name, email, status, last_online} = newFriendData;
 
             // Add to friends list
@@ -100,8 +99,6 @@ export default function Friends({
                 avatar: newFriendData.avatar ?? null,
                 last_online,
             }
-
-            console.log("newly added friend: ", newFriend)
 
             setFriends((prev) => [newFriend, ...prev])
 
@@ -118,7 +115,7 @@ export default function Friends({
         })
 
         //Listen for friend request rejected/canceled events
-        channel.listen(".RemovedFriendRequest", (removalData) => {
+        requestsChannel.listen(".RemovedFriendRequest", (removalData) => {
             if (removalData.deletionType === "rejection") {
                 // Remove from outgoing requests
                 setOutgoingRequests((prev) => prev.filter((request) => request.id !== removalData.recipientId))
@@ -136,11 +133,19 @@ export default function Friends({
             setTimeout(() => setNotification(null), 5000)
         })
 
+        friendsChannel.listen(".RemovedFriend", (removalData) => {
+            setFriends((prev) => prev.filter((friend) => friend.id !== removalData.removerId))
+
+            setTimeout(() => setNotification(null), 5000)
+        })
+
         // Cleanup function
         return () => {
-            channel.stopListening(".NewFriendRequest")
-            channel.stopListening(".FriendRequestAccepted")
-            channel.stopListening(".RemovedFriendRequest")
+            requestsChannel.stopListening(".NewFriendRequest")
+            requestsChannel.stopListening(".FriendRequestAccepted")
+            requestsChannel.stopListening(".RemovedFriendRequest")
+
+            friendsChannel.stopListening(".RemovedFriend")
         }
     }, [auth.user.id])
 
@@ -246,13 +251,16 @@ export default function Friends({
     // Confirm remove friend
     const confirmRemoveFriend = (userId) => {
         setIsProcessing(true)
-        // Implement API call to remove friend
-        router.delete(route("friend.destroy", userId), {
+
+        router.delete(route("relationship.destroy", userId), {
+            data: {
+                currentRelationship: "friends"
+            },
             onSuccess: (page) => {
                 const { notification } = page.props
 
                 setNotification({
-                    type: notification.type,
+                    type   : notification.type,
                     message: notification.message,
                 })
 
