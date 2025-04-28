@@ -11,11 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('relationships', function (Blueprint $table) {
+        Schema::create('blocked_lists', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_1_id')->constrained('users')->cascadeOnDelete();
-            $table->foreignId('user_2_id')->constrained('users')->cascadeOnDelete();
-            $table->string('status');
+            $table->foreignId('blocker_id')->constrained('users')->cascadeOnDelete();
+            $table->foreignId('blocked_id')->constrained('users')->cascadeOnDelete();
             $table->timestamps();
         });
     }
@@ -25,6 +24,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('relationships');
+        Schema::dropIfExists('blocked_lists');
     }
 };

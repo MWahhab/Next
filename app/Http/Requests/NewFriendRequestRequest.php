@@ -2,11 +2,9 @@
 
 namespace App\Http\Requests;
 
-use App\Enums\RelationshipType;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rules\Enum;
 
-class StoreRelationshipRequest extends FormRequest
+class NewFriendRequestRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -24,7 +22,7 @@ class StoreRelationshipRequest extends FormRequest
     public function rules(): array
     {
         return [
-            "relationshipType" => ["required", "string", new Enum(RelationshipType::class)],
+            'recipientEmail' => ['required', 'string', 'email', 'exists:users,email'],
         ];
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Events;
 
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
@@ -64,6 +65,10 @@ class AcceptedFriendRequest implements ShouldBroadcastNow
      */
     public function broadcastWith(): array
     {
-        return $this->newFriend->toArray();
+        $newFriend = $this->newFriend->toArray();
+
+        $newFriend["last_online"] = Carbon::create($newFriend["last_online"])->diffForHumans();
+
+        return $newFriend;
     }
 }

@@ -3,8 +3,9 @@
 namespace App\Services;
 
 use App\Enums\FriendRequestDeletionType;
-use App\Enums\RelationshipType;
+use App\Models\BlockedList;
 use App\Models\FriendRequest;
+use App\Models\FriendsList;
 use App\Models\Relationship;
 use App\Models\User;
 use Carbon\Carbon;
@@ -47,16 +48,24 @@ class FriendRequestService
     /**
      * Stores new request in DB
      *
-     * @param  array                  $validatedData Refers to the validated HTTP request data
+     * @param  string                 $recipientEmail Refers to the recipient's email
      * @return array|RedirectResponse
      */
-    public function storeFriendRequest(array $validatedData): array|RedirectResponse
+    public function storeFriendRequest(string $recipientEmail): array|RedirectResponse
     {
-        if(empty($validatedData)) {
-            abort(500, "Issue with storing validated friend request data");
+        if(!$recipientEmail || strlen($recipientEmail) < 1) {
+            abort(500, "Issue with storing friend request due to invalid email");
         }
 
-        $recipient = User::where('email', $validatedData['recipientEmail'])->firstOrFail();
+        $recipient = User::where('email', $recipientEmail)->firstOrFail();
+
+        if(!$recipient) {
+            return [
+                'statusCode' => 400,
+                'type'       => "failure",
+                'message'    => __("friend_request.user_nonexistent"),
+            ];
+        }
 
         if(FriendRequest::betweenUsers(Auth::id(), $recipient->id)->exists()) {
             return [
@@ -66,25 +75,17 @@ class FriendRequestService
             ];
         }
 
-        $existingRelationship = Relationship::betweenUsers(Auth::id(), $recipient->id)->first();
+        $areFriends = FriendsList::friendRecord(Auth::id(), $recipient->id)->exists();
+        $areBlocked = BlockedList::blockRecord(Auth::id(), $recipient->id)->exists() ||
+            BlockedList::blockRecord(Auth::id(), $recipient->id)->exists();
 
-        if($existingRelationship) {
-            $isBlocked = $existingRelationship->status == RelationshipType::BLOCKED->value;
-
-            $messageKey = $isBlocked ? "friend_request.blocked" : "friend_request.already_friends";
+        if($areFriends || $areBlocked) {
+            $messageKey = $areBlocked ? "friend_request.blocked" : "friend_request.already_friends";
 
             return [
                 'statusCode' => 409,
                 'type'       => "failure",
                 'message'    => __($messageKey, ["name" => $recipient->name])
-            ];
-        }
-
-        if(!$recipient) {
-            return [
-                'statusCode' => 400,
-                'type'       => "failure",
-                'message'    => __("friend_request.user_nonexistent"),
             ];
         }
 

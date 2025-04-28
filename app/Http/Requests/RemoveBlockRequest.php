@@ -2,11 +2,9 @@
 
 namespace App\Http\Requests;
 
-use App\Enums\FriendRequestDeletionType;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rules\Enum;
 
-class DeleteUserRequest extends FormRequest
+class RemoveBlockRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -24,7 +22,12 @@ class DeleteUserRequest extends FormRequest
     public function rules(): array
     {
         return [
-            "deletionType" => ["required", "string", new Enum(FriendRequestDeletionType::class)]
+            "blockedId" => [
+                "bail",
+                "required",
+                "integer",
+                "exists:users,id"
+            ]
         ];
     }
 }

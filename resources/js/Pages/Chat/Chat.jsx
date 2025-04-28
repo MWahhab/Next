@@ -2,112 +2,225 @@
 
 import { useState, useRef, useEffect } from "react"
 import { Head } from "@inertiajs/react"
-import { usePage } from "@inertiajs/react"
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout"
-import { Send, Paperclip, ImageIcon, Smile, User, Users, MessageSquare } from "lucide-react"
+import {
+    Send,
+    Paperclip,
+    ImageIcon,
+    Smile,
+    User,
+    Users,
+    MessageSquare,
+    MoreVertical,
+    Check,
+    CheckCheck,
+    Clock,
+    Trash2,
+    Edit,
+    Eye,
+    EyeOff,
+    X,
+} from "lucide-react"
+import UserProfileCard from "@/Components/UserProfileCard"
+import { useFriends } from "@/Contexts/FriendsContext"
+import { router, useRoute } from "@inertiajs/react"
 
-export default function Chat({ auth }) {
-    const { params } = usePage().props
-    const chatId = params?.id ? Number.parseInt(params.id) : null
-
+export default function Chat({ auth, chat, messages: initialMessages, participants }) {
+    const { friends, openProfileCard } = useFriends()
     const [message, setMessage] = useState("")
-    const [activeChat, setActiveChat] = useState(null)
+    const [messages, setMessages] = useState(initialMessages || [])
+    const [activeChat, setActiveChat] = useState(chat || null)
+    const [showProfileCard, setShowProfileCard] = useState(false)
+    const [selectedUser, setSelectedUser] = useState(null)
+    const [editingMessage, setEditingMessage] = useState(null)
+    const [editText, setEditText] = useState("")
+    const [showMessageOptions, setShowMessageOptions] = useState(null)
+    const [showSeenBy, setShowSeenBy] = useState(null)
     const messagesEndRef = useRef(null)
+    const messageInputRef = useRef(null)
 
-    // Dummy data for chats
-    const [chats, setChats] = useState([
-        {
-            id: 1,
-            name: "John Doe",
-            isGroup: false,
-            messages: [
-                { id: 1, sender: "John Doe", text: "Hey, how are you?", time: "10:30 AM", isMe: false },
-                { id: 2, sender: "Me", text: "I'm good, thanks! How about you?", time: "10:32 AM", isMe: true },
-                { id: 3, sender: "John Doe", text: "Doing well. Did you finish that task?", time: "10:33 AM", isMe: false },
-                {
-                    id: 4,
-                    sender: "Me",
-                    text: "Yes, I just completed it. I'll send you the details soon.",
-                    time: "10:35 AM",
-                    isMe: true,
-                },
-            ],
-        },
-        {
-            id: 2,
-            name: "Team Alpha",
-            isGroup: true,
-            messages: [
-                { id: 1, sender: "Sarah Wilson", text: "Meeting at 3pm today", time: "09:15 AM", isMe: false },
-                { id: 2, sender: "Mike Johnson", text: "I'll be there", time: "09:20 AM", isMe: false },
-                { id: 3, sender: "Me", text: "Should I prepare the presentation?", time: "09:25 AM", isMe: true },
-                { id: 4, sender: "Sarah Wilson", text: "Yes, please. Focus on the Q2 results.", time: "09:30 AM", isMe: false },
-            ],
-        },
-        {
-            id: 3,
-            name: "Sarah Wilson",
-            isGroup: false,
-            messages: [
-                { id: 1, sender: "Sarah Wilson", text: "Hi there!", time: "11:00 AM", isMe: false },
-                { id: 2, sender: "Me", text: "Hello Sarah, how can I help you?", time: "11:05 AM", isMe: true },
-                {
-                    id: 3,
-                    sender: "Sarah Wilson",
-                    text: "I wanted to discuss the project timeline",
-                    time: "11:10 AM",
-                    isMe: false,
-                },
-                { id: 4, sender: "Me", text: "Sure, I'm available now if you want to talk", time: "11:15 AM", isMe: true },
-            ],
-        },
-    ])
+    // Determine if this is a group chat
+    const isGroupChat = participants && participants.length > 2
+
+    // For one-on-one chats, find the other participant
+    const otherParticipant = !isGroupChat && participants ? participants.find((p) => p.id !== auth.user.id) : null
+
+    // Find the corresponding friend object for the other participant
+    const chatFriend = otherParticipant ? friends.find((f) => f.id === otherParticipant.id) : null
+
+    const route = useRoute()
 
     useEffect(() => {
-        // Set the active chat based on the URL parameter
-        if (chatId) {
-            const chat = chats.find((c) => c.id === chatId)
-            if (chat) {
-                setActiveChat(chat)
-            }
-        } else if (chats.length > 0 && !activeChat) {
-            // Default to first chat if no ID is provided
-            setActiveChat(chats[0])
+        // Set the active chat based on the props
+        if (chat) {
+            setActiveChat(chat)
         }
 
         // Scroll to bottom of messages
         scrollToBottom()
-    }, [activeChat, chats, chatId])
+
+        // Mark messages as seen when opening the chat
+        if (chat?.id) {
+            markMessagesAsSeen(chat.id)
+        }
+
+        // Set up Pusher channel for real-time messages
+        if (chat?.id) {
+            const channel = window.Echo.private(`chat.${chat.id}`)
+
+            channel.listen(".MessageSent", (data) => {
+                const { message } = data
+                setMessages((prev) => [...prev, message])
+
+                // Mark as seen if the chat is currently open
+                markMessagesAsSeen(chat.id)
+            })
+
+            channel.listen(".MessageUpdated", (data) => {
+                const { message } = data
+                setMessages((prev) => prev.map((m) => (m.id === message.id ? message : m)))
+            })
+
+            channel.listen(".MessageDeleted", (data) => {
+                const { messageId } = data
+                setMessages((prev) => prev.filter((m) => m.id !== messageId))
+            })
+
+            channel.listen(".MessageSeen", (data) => {
+                const { messageId, userId, userName } = data
+                // Update the seen_by field for this message
+                setMessages((prev) =>
+                    prev.map((m) => {
+                        if (m.id === messageId) {
+                            const seenBy = m.seen_by || []
+                            if (!seenBy.some((user) => user.id === userId)) {
+                                return {
+                                    ...m,
+                                    seen_by: [...seenBy, { id: userId, name: userName }],
+                                }
+                            }
+                        }
+                        return m
+                    }),
+                )
+            })
+
+            return () => {
+                channel.stopListening(".MessageSent")
+                channel.stopListening(".MessageUpdated")
+                channel.stopListening(".MessageDeleted")
+                channel.stopListening(".MessageSeen")
+            }
+        }
+    }, [chat])
+
+    // Scroll to bottom whenever messages change
+    useEffect(() => {
+        scrollToBottom()
+    }, [messages])
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+    }
+
+    const markMessagesAsSeen = (chatId) => {
+        router.post(route("chat.mark-seen", chatId))
     }
 
     const handleSendMessage = (e) => {
         e.preventDefault()
 
         if (message.trim() && activeChat) {
-            const newMessage = {
-                id: activeChat.messages.length + 1,
-                sender: "Me",
-                text: message,
-                time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-                isMe: true,
-            }
+            router.post(
+                route("chat.send-message", activeChat.id),
+                {
+                    message: message.trim(),
+                },
+                {
+                    preserveScroll: true,
+                    onSuccess: () => {
+                        setMessage("")
+                        messageInputRef.current?.focus()
+                    },
+                },
+            )
+        }
+    }
 
-            const updatedChats = chats.map((chat) => {
-                if (chat.id === activeChat.id) {
-                    return {
-                        ...chat,
-                        messages: [...chat.messages, newMessage],
-                    }
+    const handleEditMessage = (messageId) => {
+        const msg = messages.find((m) => m.id === messageId)
+        if (msg) {
+            setEditingMessage(messageId)
+            setEditText(msg.message)
+            setShowMessageOptions(null)
+            setTimeout(() => {
+                messageInputRef.current?.focus()
+            }, 100)
+        }
+    }
+
+    const handleSaveEdit = () => {
+        if (editText.trim() && editingMessage) {
+            router.put(
+                route("chat.update-message", editingMessage),
+                {
+                    message: editText.trim(),
+                },
+                {
+                    preserveScroll: true,
+                    onSuccess: () => {
+                        setEditingMessage(null)
+                        setEditText("")
+                    },
+                },
+            )
+        }
+    }
+
+    const handleCancelEdit = () => {
+        setEditingMessage(null)
+        setEditText("")
+    }
+
+    const handleDeleteMessage = (messageId) => {
+        router.delete(route("chat.delete-message", messageId), {
+            preserveScroll: true,
+            onSuccess: () => {
+                setShowMessageOptions(null)
+            },
+        })
+    }
+
+    const handleHideChat = () => {
+        router.put(route("chat.hide", activeChat.id), {
+            preserveScroll: true,
+            onSuccess: (page) => {
+                const { notification } = page.props
+                if (notification.statusCode === 200) {
+                    window.location.href = route("chat.index")
                 }
-                return chat
-            })
+            },
+        })
+    }
 
-            setChats(updatedChats)
-            setActiveChat(updatedChats.find((chat) => chat.id === activeChat.id))
-            setMessage("")
+    const handleProfileClick = () => {
+        if (isGroupChat) return
+
+        if (chatFriend) {
+            setSelectedUser(chatFriend)
+            setShowProfileCard(true)
+        }
+    }
+
+    const getMessageStatusIcon = (message) => {
+        if (!message.seen_by) return <Clock size={14} className="text-gray-400" />
+
+        const seenByOthers = message.seen_by.some((user) => user.id !== auth.user.id)
+
+        if (seenByOthers) {
+            return <CheckCheck size={14} className="text-blue-500" />
+        } else {
+            return <Check size={14} className="text-gray-400" />
         }
     }
 
@@ -116,91 +229,185 @@ export default function Chat({ auth }) {
             <Head title={activeChat ? `Chat - ${activeChat.name}` : "Chat"} />
 
             <div className="flex h-full">
-                {/* Chat List (Mobile) */}
-                <div className="md:hidden w-full">
-                    {!activeChat ? (
-                        <div className="h-full">
-                            <div className="p-4 border-b border-gray-200">
-                                <h2 className="font-semibold text-lg">Chats</h2>
-                            </div>
-
-                            <div className="overflow-y-auto">
-                                {chats.map((chat) => (
-                                    <div
-                                        key={chat.id}
-                                        className="p-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
-                                        onClick={() => setActiveChat(chat)}
-                                    >
-                                        <div className="flex items-center">
-                                            <div className="relative">
-                                                {chat.isGroup ? (
-                                                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                                                        <Users size={20} className="text-blue-600" />
-                                                    </div>
-                                                ) : (
-                                                    <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
-                                                        <User size={20} className="text-gray-600" />
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <div className="ml-3 flex-1">
-                                                <div className="flex justify-between">
-                                                    <span className="font-medium">{chat.name}</span>
-                                                    <span className="text-xs text-gray-500">
-                            {chat.messages.length > 0 ? chat.messages[chat.messages.length - 1].time : ""}
-                          </span>
-                                                </div>
-                                                <p className="text-sm text-gray-600 truncate">
-                                                    {chat.messages.length > 0
-                                                        ? `${chat.messages[chat.messages.length - 1].sender === "Me" ? "You: " : ""}${chat.messages[chat.messages.length - 1].text}`
-                                                        : "No messages yet"}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="h-full flex flex-col">
-                            <div className="p-3 border-b border-gray-200 flex items-center">
-                                <button className="mr-2 p-1 rounded-full hover:bg-gray-100" onClick={() => setActiveChat(null)}>
-                                    <svg
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        className="h-6 w-6"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                    >
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                                    </svg>
-                                </button>
-                                <div className="flex items-center">
-                                    {activeChat.isGroup ? (
+                {/* Chat Area */}
+                <div className="w-full flex flex-col">
+                    {activeChat ? (
+                        <>
+                            <div className="p-3 border-b border-gray-200 flex items-center justify-between bg-white">
+                                <div className="flex items-center cursor-pointer" onClick={handleProfileClick}>
+                                    {isGroupChat ? (
                                         <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
                                             <Users size={16} className="text-blue-600" />
                                         </div>
                                     ) : (
-                                        <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
-                                            <User size={16} className="text-gray-600" />
+                                        <div className="relative">
+                                            <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
+                                                <User size={16} className="text-gray-600" />
+                                            </div>
+                                            {chatFriend && (
+                                                <div
+                                                    className={`absolute bottom-0 right-0 w-2 h-2 rounded-full border-2 border-white ${
+                                                        chatFriend.status === "online"
+                                                            ? "bg-green-500"
+                                                            : chatFriend.status === "away"
+                                                                ? "bg-yellow-500"
+                                                                : "bg-gray-400"
+                                                    }`}
+                                                ></div>
+                                            )}
                                         </div>
                                     )}
                                     <span className="ml-2 font-medium">{activeChat.name}</span>
                                 </div>
+
+                                <div className="flex items-center">
+                                    <button
+                                        onClick={handleHideChat}
+                                        className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full"
+                                        title="Hide Chat"
+                                    >
+                                        <EyeOff size={18} />
+                                    </button>
+                                    <div className="relative group">
+                                        <button className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full">
+                                            <MoreVertical size={18} />
+                                        </button>
+                                        <div className="absolute right-0 mt-1 w-48 bg-white shadow-lg rounded-md overflow-hidden z-10 hidden group-hover:block">
+                                            {!isGroupChat && (
+                                                <button
+                                                    onClick={handleProfileClick}
+                                                    className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
+                                                >
+                                                    View Profile
+                                                </button>
+                                            )}
+                                            <button onClick={handleHideChat} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100">
+                                                Hide Chat
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
 
-                            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                                {activeChat.messages.map((msg) => (
-                                    <div key={msg.id} className={`flex ${msg.isMe ? "justify-end" : "justify-start"}`}>
+                            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+                                {messages.map((msg) => (
+                                    <div
+                                        key={msg.id}
+                                        className={`flex ${msg.user_id === auth.user.id ? "justify-end" : "justify-start"}`}
+                                    >
                                         <div
-                                            className={`max-w-xs md:max-w-md rounded-lg p-3 ${
-                                                msg.isMe ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-800"
+                                            className={`max-w-xs md:max-w-md rounded-lg p-3 relative ${
+                                                msg.user_id === auth.user.id
+                                                    ? "bg-blue-600 text-white"
+                                                    : "bg-white text-gray-800 border border-gray-200"
                                             }`}
                                         >
-                                            {!msg.isMe && activeChat.isGroup && <div className="font-medium text-xs mb-1">{msg.sender}</div>}
-                                            <p>{msg.text}</p>
-                                            <div className={`text-xs mt-1 text-right ${msg.isMe ? "text-blue-200" : "text-gray-500"}`}>
-                                                {msg.time}
+                                            {isGroupChat && msg.user_id !== auth.user.id && (
+                                                <div className="font-medium text-xs mb-1">{msg.user?.name || "Unknown User"}</div>
+                                            )}
+
+                                            {editingMessage === msg.id ? (
+                                                <div className="flex flex-col">
+                                                    <input
+                                                        type="text"
+                                                        value={editText}
+                                                        onChange={(e) => setEditText(e.target.value)}
+                                                        className="p-1 border border-gray-300 rounded text-gray-800 mb-1"
+                                                        ref={messageInputRef}
+                                                    />
+                                                    <div className="flex justify-end space-x-2">
+                                                        <button
+                                                            onClick={handleCancelEdit}
+                                                            className="text-xs bg-gray-200 text-gray-800 px-2 py-1 rounded"
+                                                        >
+                                                            Cancel
+                                                        </button>
+                                                        <button
+                                                            onClick={handleSaveEdit}
+                                                            className="text-xs bg-blue-500 text-white px-2 py-1 rounded"
+                                                        >
+                                                            Save
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <p>{msg.message}</p>
+                                            )}
+
+                                            <div
+                                                className={`text-xs mt-1 text-right flex items-center justify-end ${
+                                                    msg.user_id === auth.user.id ? "text-blue-200" : "text-gray-500"
+                                                }`}
+                                            >
+                        <span>
+                          {new Date(msg.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        </span>
+
+                                                {msg.user_id === auth.user.id && (
+                                                    <div className="ml-1 relative">
+                                                        <button
+                                                            onClick={() => {
+                                                                setShowMessageOptions(showMessageOptions === msg.id ? null : msg.id)
+                                                                setShowSeenBy(null)
+                                                            }}
+                                                            className="p-0.5 hover:bg-blue-700 rounded"
+                                                        >
+                                                            <MoreVertical size={12} />
+                                                        </button>
+
+                                                        {showMessageOptions === msg.id && (
+                                                            <div className="absolute right-0 bottom-full mb-1 w-32 bg-white shadow-lg rounded-md overflow-hidden z-10 text-left">
+                                                                <button
+                                                                    onClick={() => handleEditMessage(msg.id)}
+                                                                    className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-100 flex items-center"
+                                                                >
+                                                                    <Edit size={12} className="mr-1.5" /> Edit
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleDeleteMessage(msg.id)}
+                                                                    className="w-full text-left px-3 py-1.5 text-xs text-red-600 hover:bg-gray-100 flex items-center"
+                                                                >
+                                                                    <Trash2 size={12} className="mr-1.5" /> Delete
+                                                                </button>
+                                                                {isGroupChat && (
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            setShowSeenBy(showSeenBy === msg.id ? null : msg.id)
+                                                                            setShowMessageOptions(null)
+                                                                        }}
+                                                                        className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-100 flex items-center"
+                                                                    >
+                                                                        <Eye size={12} className="mr-1.5" /> Seen by
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        )}
+
+                                                        {showSeenBy === msg.id && (
+                                                            <div className="absolute right-0 bottom-full mb-1 w-40 bg-white shadow-lg rounded-md overflow-hidden z-10">
+                                                                <div className="p-2 text-xs text-gray-700">
+                                                                    <div className="font-medium mb-1">Seen by:</div>
+                                                                    {msg.seen_by && msg.seen_by.length > 0 ? (
+                                                                        <ul className="space-y-1">
+                                                                            {msg.seen_by.map((user) => (
+                                                                                <li key={user.id} className="flex items-center">
+                                                                                    <CheckCheck size={12} className="text-blue-500 mr-1" />
+                                                                                    {user.name}
+                                                                                </li>
+                                                                            ))}
+                                                                        </ul>
+                                                                    ) : (
+                                                                        <p className="text-gray-500">Not seen yet</p>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+
+                                                {msg.user_id === auth.user.id && !isGroupChat && (
+                                                    <div className="ml-1">{getMessageStatusIcon(msg)}</div>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
@@ -208,7 +415,7 @@ export default function Chat({ auth }) {
                                 <div ref={messagesEndRef} />
                             </div>
 
-                            <form onSubmit={handleSendMessage} className="p-3 border-t border-gray-200">
+                            <form onSubmit={handleSendMessage} className="p-3 border-t border-gray-200 bg-white">
                                 <div className="flex items-center">
                                     <button type="button" className="p-2 text-gray-500 hover:text-gray-700 rounded-full">
                                         <Paperclip size={20} />
@@ -218,85 +425,34 @@ export default function Chat({ auth }) {
                                     </button>
                                     <input
                                         type="text"
-                                        value={message}
-                                        onChange={(e) => setMessage(e.target.value)}
-                                        placeholder="Type a message..."
+                                        value={editingMessage ? editText : message}
+                                        onChange={(e) => (editingMessage ? setEditText(e.target.value) : setMessage(e.target.value))}
+                                        placeholder={editingMessage ? "Edit your message..." : "Type a message..."}
                                         className="flex-1 mx-2 p-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        ref={messageInputRef}
                                     />
                                     <button type="button" className="p-2 text-gray-500 hover:text-gray-700 rounded-full">
                                         <Smile size={20} />
                                     </button>
-                                    <button
-                                        type="submit"
-                                        disabled={!message.trim()}
-                                        className="p-2 bg-blue-600 text-white rounded-full disabled:bg-blue-300"
-                                    >
-                                        <Send size={20} />
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    )}
-                </div>
-
-                {/* Desktop View */}
-                <div className="hidden md:flex w-full h-full">
-                    {/* Chat Area */}
-                    <div className="w-full flex flex-col">
-                        {activeChat ? (
-                            <>
-                                <div className="p-3 border-b border-gray-200 flex items-center bg-white">
-                                    {activeChat.isGroup ? (
-                                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                                            <Users size={16} className="text-blue-600" />
+                                    {editingMessage ? (
+                                        <div className="flex">
+                                            <button
+                                                type="button"
+                                                onClick={handleCancelEdit}
+                                                className="p-2 bg-gray-200 text-gray-700 rounded-full mr-1"
+                                            >
+                                                <X size={20} />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={handleSaveEdit}
+                                                disabled={!editText.trim()}
+                                                className="p-2 bg-blue-600 text-white rounded-full disabled:bg-blue-300"
+                                            >
+                                                <Check size={20} />
+                                            </button>
                                         </div>
                                     ) : (
-                                        <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
-                                            <User size={16} className="text-gray-600" />
-                                        </div>
-                                    )}
-                                    <span className="ml-2 font-medium">{activeChat.name}</span>
-                                </div>
-
-                                <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
-                                    {activeChat.messages.map((msg) => (
-                                        <div key={msg.id} className={`flex ${msg.isMe ? "justify-end" : "justify-start"}`}>
-                                            <div
-                                                className={`max-w-xs md:max-w-md rounded-lg p-3 ${
-                                                    msg.isMe ? "bg-blue-600 text-white" : "bg-white text-gray-800 border border-gray-200"
-                                                }`}
-                                            >
-                                                {!msg.isMe && activeChat.isGroup && (
-                                                    <div className="font-medium text-xs mb-1">{msg.sender}</div>
-                                                )}
-                                                <p>{msg.text}</p>
-                                                <div className={`text-xs mt-1 text-right ${msg.isMe ? "text-blue-200" : "text-gray-500"}`}>
-                                                    {msg.time}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                    <div ref={messagesEndRef} />
-                                </div>
-
-                                <form onSubmit={handleSendMessage} className="p-3 border-t border-gray-200 bg-white">
-                                    <div className="flex items-center">
-                                        <button type="button" className="p-2 text-gray-500 hover:text-gray-700 rounded-full">
-                                            <Paperclip size={20} />
-                                        </button>
-                                        <button type="button" className="p-2 text-gray-500 hover:text-gray-700 rounded-full">
-                                            <ImageIcon size={20} />
-                                        </button>
-                                        <input
-                                            type="text"
-                                            value={message}
-                                            onChange={(e) => setMessage(e.target.value)}
-                                            placeholder="Type a message..."
-                                            className="flex-1 mx-2 p-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        />
-                                        <button type="button" className="p-2 text-gray-500 hover:text-gray-700 rounded-full">
-                                            <Smile size={20} />
-                                        </button>
                                         <button
                                             type="submit"
                                             disabled={!message.trim()}
@@ -304,23 +460,36 @@ export default function Chat({ auth }) {
                                         >
                                             <Send size={20} />
                                         </button>
-                                    </div>
-                                </form>
-                            </>
-                        ) : (
-                            <div className="flex-1 flex items-center justify-center bg-gray-50">
-                                <div className="text-center">
-                                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                        <MessageSquare size={32} className="text-gray-400" />
-                                    </div>
-                                    <h3 className="text-lg font-medium text-gray-700">Select a chat</h3>
-                                    <p className="text-gray-500 mt-1">Choose a conversation to start messaging</p>
+                                    )}
                                 </div>
+                            </form>
+                        </>
+                    ) : (
+                        <div className="flex-1 flex items-center justify-center bg-gray-50">
+                            <div className="text-center">
+                                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <MessageSquare size={32} className="text-gray-400" />
+                                </div>
+                                <h3 className="text-lg font-medium text-gray-700">Select a chat</h3>
+                                <p className="text-gray-500 mt-1">Choose a conversation to start messaging</p>
                             </div>
-                        )}
-                    </div>
+                        </div>
+                    )}
                 </div>
             </div>
+
+            {/* User Profile Card */}
+            {selectedUser && (
+                <UserProfileCard
+                    user={selectedUser}
+                    isOpen={showProfileCard}
+                    onClose={() => setShowProfileCard(false)}
+                    isFriend={true}
+                    isBlocked={false}
+                    isRequestSent={false}
+                    isRequestReceived={false}
+                />
+            )}
         </AuthenticatedLayout>
     )
 }

@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Head, router, usePage } from "@inertiajs/react"
+import { Head, router } from "@inertiajs/react"
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout"
 import {
     User,
@@ -64,14 +64,13 @@ export default function Friends({
 
         // Listen for new friend requests
         requestsChannel.listen(".NewFriendRequest", (senderInfo) => {
-            const { senderId, name, status, avatar, lastOnline, email } = senderInfo
+            const { senderId, name, status, avatar, email } = senderInfo
 
             const newRequest = {
                 id: senderId,
                 name,
                 status,
                 avatar,
-                last_online: lastOnline,
                 email,
             }
 
@@ -252,9 +251,9 @@ export default function Friends({
     const confirmRemoveFriend = (userId) => {
         setIsProcessing(true)
 
-        router.delete(route("relationship.destroy", userId), {
+        router.delete(route("friends-list.destroy"), {
             data: {
-                currentRelationship: "friends"
+                friendId: userId
             },
             onSuccess: (page) => {
                 const { notification } = page.props
@@ -286,8 +285,8 @@ export default function Friends({
     const handleAcceptRequest = (senderId) => {
         setIsProcessing(true)
 
-        router.post(route('relationship.store', senderId), {
-                relationshipType: "friends",
+        router.post(route('friends-list.store'), {
+                friendId: senderId
             }, {
             onSuccess: (page) => {
                 const { notification, friend } = page.props
@@ -390,12 +389,15 @@ export default function Friends({
     const confirmUnblockUser = (userId) => {
         setIsProcessing(true)
 
-        router.delete(route("user.unblock", userId), {
+        router.delete(route("blocked-list.destroy"), {
+            data: {
+                blockedId: userId
+            },
             onSuccess: (page) => {
                 const { notification } = page.props
 
                 setNotification({
-                    type: notification.type,
+                    type   : notification.type,
                     message: notification.message,
                 })
 
@@ -441,7 +443,7 @@ export default function Friends({
                     if (notification.statusCode === 201) {
                         const { friendRequest } = page.props
 
-                        const { id, name, status, avatar, last_online, email } = friendRequest
+                        const { id, name, status, avatar, email } = friendRequest
 
                         const newOutgoingRequest = {
                             id,
@@ -449,7 +451,6 @@ export default function Friends({
                             email,
                             status,
                             avatar,
-                            last_online,
                         }
 
                         setOutgoingRequests((prev) => [newOutgoingRequest, ...prev])
@@ -786,7 +787,6 @@ export default function Friends({
                                                                 </div>
                                                                 <div className="ml-3">
                                                                     <div className="font-medium text-gray-900">{request.name}</div>
-                                                                    <div className="text-xs text-gray-500">{`last online ${request.last_online}`}</div>
                                                                     {request.email && <div className="text-xs text-gray-500">{request.email}</div>}
                                                                 </div>
                                                             </div>
@@ -996,7 +996,6 @@ export default function Friends({
                                                         </div>
                                                         <div className="ml-3">
                                                             <div className="font-medium text-gray-900">{user.name}</div>
-                                                            {user.last_online && <div className="text-xs text-gray-500">{`last_online ${user.last_online}`}</div>}
                                                         </div>
                                                     </div>
 

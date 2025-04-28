@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ChatController;
+use App\Http\Controllers\FriendsListController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RelationshipController;
@@ -34,18 +35,19 @@ Route::middleware('auth')->group(function () {
 
     Route::resource('/chat', ChatController::class);
     Route::resource('/message', MessageController::class);
-    Route::resource('/relationship', RelationshipController::class)->only("index");
-    Route::resource('/task_assignee', TaskAssigneeController::class);
+    Route::resource('/friends-list', FriendsListController::class)->only("index");
+    Route::resource('/task-assignee', TaskAssigneeController::class);
     Route::resource('/task', TaskController::class);
 
     Route::post('/friend-request', [FriendRequestController::class, 'store'])->name('friend-request.store');
     Route::delete('/friend-request/{sender}/{recipient}', [FriendRequestController::class, 'destroy'])
         ->name('friend-request.destroy');
 
-    Route::post('/relationship/{otherUser}', [RelationshipController::class, 'store'])
-        ->name('relationship.store');
-    Route::delete('/relationship/{otherUser}', [RelationshipController::class, 'destroy'])
-        ->name('relationship.destroy');
+    Route::post("/friends-list", [FriendsListController::class, 'store'])->name('friends-list.store');
+    Route::delete("/friends-list", [FriendsListController::class, 'destroy'])->name('friends-list.destroy');
+
+    Route::post("/blocked-list", [FriendsListController::class, 'store'])->name('blocked-list.store');
+    Route::delete("/blocked-list", [FriendsListController::class, 'destroy'])->name('blocked-list.destroy');
 });
 
 require __DIR__.'/auth.php';

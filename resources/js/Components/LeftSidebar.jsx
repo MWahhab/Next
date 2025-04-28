@@ -2,21 +2,29 @@
 
 import { useState } from "react"
 import { Search, Users, User, FileText, LogOut, Home } from "lucide-react"
-import { usePage, Link } from "@inertiajs/react"
+import { usePage } from "@inertiajs/react"
+import { Link } from "@inertiajs/react"
+import { useFriends } from "@/Contexts/FriendsContext"
+import UserProfileCard from "@/Components/UserProfileCard"
 
 export default function LeftSidebar({ setView }) {
     const { url } = usePage()
     const [searchTerm, setSearchTerm] = useState("")
+    const { sortedFriends } = useFriends()
+    const [selectedUser, setSelectedUser] = useState(null)
+    const [showProfileCard, setShowProfileCard] = useState(false)
+
+    // Chats will come from API in the future
     const [chats, setChats] = useState([
-        { id: 1, name: "John Doe", lastMessage: "Hey, how are you?", unread: 2 },
+        { id: 1, name: "John Doe", lastMessage: "Hey, how are you?", unread: 2, isGroup: false },
         { id: 2, name: "Team Alpha", lastMessage: "Meeting at 3pm", unread: 0, isGroup: true },
-        { id: 3, name: "Sarah Wilson", lastMessage: "I finished the task", unread: 1 },
+        { id: 3, name: "Sarah Wilson", lastMessage: "I finished the task", unread: 1, isGroup: false },
         { id: 4, name: "Project X", lastMessage: "New updates available", unread: 3, isGroup: true },
-        { id: 5, name: "Mike Johnson", lastMessage: "Let me know when you're free", unread: 0 },
+        { id: 5, name: "Mike Johnson", lastMessage: "Let me know when you're free", unread: 0, isGroup: false },
         { id: 6, name: "Design Team", lastMessage: "Check the new mockups", unread: 0, isGroup: true },
-        { id: 7, name: "Lisa Brown", lastMessage: "Thanks for your help!", unread: 0 },
+        { id: 7, name: "Lisa Brown", lastMessage: "Thanks for your help!", unread: 0, isGroup: false },
         { id: 8, name: "Marketing", lastMessage: "Campaign starts tomorrow", unread: 5, isGroup: true },
-        { id: 9, name: "Alex Smith", lastMessage: "Can we talk later?", unread: 0 },
+        { id: 9, name: "Alex Smith", lastMessage: "Can we talk later?", unread: 0, isGroup: false },
         { id: 10, name: "Development", lastMessage: "New bug reported", unread: 2, isGroup: true },
     ])
 
@@ -27,8 +35,20 @@ export default function LeftSidebar({ setView }) {
     const activeChatId = isChatPage ? Number.parseInt(url.split("/").pop()) : null
 
     const handleChatClick = (chatId) => {
-        //window.location.href = `/chat/${chatId}`
-        window.location.href = "/mockChat";
+        window.location.href = `/chat/${chatId}`
+    }
+
+    const handleProfileClick = (e, chat) => {
+        e.stopPropagation() // Prevent triggering the chat click
+
+        if (chat.isGroup) return // Don't open profile card for group chats
+
+        // Find the corresponding user in friends list
+        const user = sortedFriends.find((friend) => friend.name === chat.name)
+        if (user) {
+            setSelectedUser(user)
+            setShowProfileCard(true)
+        }
     }
 
     return (
@@ -65,7 +85,10 @@ export default function LeftSidebar({ setView }) {
                                         <Users size={20} className="text-blue-600" />
                                     </div>
                                 ) : (
-                                    <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
+                                    <div
+                                        className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center cursor-pointer"
+                                        onClick={(e) => handleProfileClick(e, chat)}
+                                    >
                                         <User size={20} className="text-gray-600" />
                                     </div>
                                 )}
@@ -89,6 +112,7 @@ export default function LeftSidebar({ setView }) {
 
             {/* Bottom Navigation - Fixed Position */}
             <div className="p-3 border-t border-gray-200 flex justify-around bg-white flex-shrink-0">
+                {/* Home Button - Stands out with blue background */}
                 <Link
                     href={route("schedule")}
                     className={`p-2 rounded-full bg-blue-600 text-white hover:bg-blue-700 shadow-md transform hover:scale-105 transition-all`}
@@ -96,11 +120,16 @@ export default function LeftSidebar({ setView }) {
                 >
                     <Home size={20} />
                 </Link>
+
                 <button className="p-2 hover:bg-gray-100 rounded-full" title="Archived Tasks">
                     <FileText size={20} />
                 </button>
-                <Link href={route('relationship.index')} className="p-2 hover:bg-gray-100 rounded-full" title="Friends List">
-                    <Users size={20} />
+                <Link
+                    href={route("friends-list.index")}
+                    className={`p-2 hover:bg-gray-100 rounded-full ${url.startsWith("/friends") ? "bg-gray-200" : ""}`}
+                    title="Friends List"
+                >
+                    <Users size={20} className={url.startsWith("/friends") ? "text-blue-600" : ""} />
                 </Link>
                 <Link href={route("profile.edit")} className="p-2 hover:bg-gray-100 rounded-full" title="Profile">
                     <User size={20} />
@@ -109,6 +138,19 @@ export default function LeftSidebar({ setView }) {
                     <LogOut size={20} />
                 </Link>
             </div>
+
+            {/* User Profile Card */}
+            {selectedUser && (
+                <UserProfileCard
+                    user={selectedUser}
+                    isOpen={showProfileCard}
+                    onClose={() => setShowProfileCard(false)}
+                    isFriend={true}
+                    isBlocked={false}
+                    isRequestSent={false}
+                    isRequestReceived={false}
+                />
+            )}
         </div>
     )
 }

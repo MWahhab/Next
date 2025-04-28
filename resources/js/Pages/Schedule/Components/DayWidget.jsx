@@ -134,9 +134,9 @@ export default function DayWidget({ day, onClick }) {
             }`}
             onClick={onClick}
         >
-            <div className="p-3 border-b border-gray-200 flex justify-between items-center">
+            <div className="p-4 border-b border-gray-200 flex justify-between items-center">
                 <div>
-                    <div className="font-medium">{formatDate(day.date)}</div>
+                    <div className="font-medium text-base">{formatDate(day.date)}</div>
                     <div className="text-sm text-gray-600">{getDayName(day.date)}</div>
                 </div>
                 {totalUncompletedTasks > 0 && (
@@ -144,14 +144,14 @@ export default function DayWidget({ day, onClick }) {
                 )}
             </div>
 
-            <div className="p-3">
-                <div className="flex items-center mb-3">
+            <div className="p-4">
+                <div className="flex items-center mb-4">
                     <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-700 font-medium">
                         1
                     </div>
-                    <div className="ml-2 flex-1">
-                        <div className="text-sm">Standalone Task(s)</div>
-                        <div className="flex items-center mt-1 space-x-3">
+                    <div className="ml-3 flex-1">
+                        <div className="text-sm font-medium">Standalone Task(s)</div>
+                        <div className="flex items-center mt-2 space-x-4">
                             {standaloneImportanceCounts[1] > 0 && (
                                 <div className="flex items-center">
                                     <div className="w-3 h-3 rounded-full bg-red-500"></div>
@@ -178,9 +178,9 @@ export default function DayWidget({ day, onClick }) {
                     <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-700 font-medium">
                         4
                     </div>
-                    <div className="ml-2 flex-1">
-                        <div className="text-sm">Routine Task(s)</div>
-                        <div className="flex items-center mt-1 space-x-3">
+                    <div className="ml-3 flex-1">
+                        <div className="text-sm font-medium">Routine Task(s)</div>
+                        <div className="flex items-center mt-2 space-x-4">
                             {routineImportanceCounts[1] > 0 && (
                                 <div className="flex items-center">
                                     <div className="w-3 h-3 rounded-full bg-red-500"></div>
@@ -206,14 +206,14 @@ export default function DayWidget({ day, onClick }) {
 
             {/* Countdown timer for next due task */}
             {isToday && timeLeft && (
-                <div className="bg-yellow-100 text-yellow-800 text-xs font-medium py-1 px-2 text-center">
+                <div className="bg-yellow-100 text-yellow-800 text-xs font-medium py-2 px-3 text-center">
                     Next task due: {timeLeft}
                 </div>
             )}
 
             {/* Pending invites indicator */}
             {hasPendingInvites && (
-                <div className="bg-blue-100 text-blue-800 text-xs font-medium py-1 px-2 text-center">Pending invites</div>
+                <div className="bg-blue-100 text-blue-800 text-xs font-medium py-2 px-3 text-center">Pending invites</div>
             )}
         </div>
     )
