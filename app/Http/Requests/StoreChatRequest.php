@@ -2,17 +2,17 @@
 
 namespace App\Http\Requests;
 
-use App\Rules\HasntBlockedUser;
+use App\Rules\UsersExist;
 use Illuminate\Foundation\Http\FormRequest;
 
-class StoreBlockRequest extends FormRequest
+class StoreChatRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
      */
     public function authorize(): bool
     {
-        return true;
+        return false;
     }
 
     /**
@@ -23,12 +23,20 @@ class StoreBlockRequest extends FormRequest
     public function rules(): array
     {
         return [
-            "blockedId" => [
+            "userIds" => [
                 "bail",
                 "required",
-                "integer",
-                "exists:users,id",
-                new HasntBlockedUser()
+                "array",
+                new UsersExist(),
+                new UsersAreFriends()
+            ],
+            "title" => [
+                "bail",
+                "required",
+                "string"
+            ],
+            "description" => [
+                "string"
             ]
         ];
     }

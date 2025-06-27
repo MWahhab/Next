@@ -2,17 +2,16 @@
 
 namespace App\Http\Requests;
 
-use App\Rules\HasntBlockedUser;
 use Illuminate\Foundation\Http\FormRequest;
 
-class StoreBlockRequest extends FormRequest
+class UpdateMessageRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
      */
     public function authorize(): bool
     {
-        return true;
+        return false;
     }
 
     /**
@@ -23,12 +22,14 @@ class StoreBlockRequest extends FormRequest
     public function rules(): array
     {
         return [
-            "blockedId" => [
-                "bail",
-                "required",
-                "integer",
-                "exists:users,id",
-                new HasntBlockedUser()
+            "message" => [
+                "string"
+            ],
+            "image" => [
+                "image"
+            ],
+            "file" => [
+                "file"
             ]
         ];
     }

@@ -3,7 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Rules\ArentFriends;
-use App\Rules\IsntBlocked;
+use App\Rules\HasntBlockedUser;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -31,7 +31,7 @@ class StoreFriendRequest extends FormRequest
                 "integer",
                 "exists:users,id",
                 new ArentFriends(),
-                new IsntBlocked()
+                new HasntBlockedUser()
             ],
         ];
     }

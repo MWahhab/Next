@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ChatController;
+use App\Http\Controllers\ChatParticipantController;
 use App\Http\Controllers\FriendsListController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\ProfileController;
@@ -30,14 +31,13 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-    Route::get('/mockChat', function () { return Inertia::render('Chat/Chat'); });
-
-
     Route::resource('/chat', ChatController::class);
     Route::resource('/message', MessageController::class);
     Route::resource('/friends-list', FriendsListController::class)->only("index");
     Route::resource('/task-assignee', TaskAssigneeController::class);
     Route::resource('/task', TaskController::class);
+
+    Route::put("/hide-dm", [ChatParticipantController::class, "hideDirectMessage"])->name("chat.hideDM");
 
     Route::post('/friend-request', [FriendRequestController::class, 'store'])->name('friend-request.store');
     Route::delete('/friend-request/{sender}/{recipient}', [FriendRequestController::class, 'destroy'])

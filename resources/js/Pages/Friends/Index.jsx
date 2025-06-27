@@ -232,11 +232,6 @@ export default function Friends({
         return "Search..."
     }
 
-    // Handle message user
-    const handleMessageUser = (userId) => {
-        window.location.href = `/chat/${userId}`
-    }
-
     // Handle remove friend
     const handleRemoveFriend = (userId, userName) => {
         setConfirmationData({
@@ -654,13 +649,13 @@ export default function Friends({
                                                             hoveredUser === friend.id ? "opacity-100" : "opacity-0"
                                                         }`}
                                                     >
-                                                        <button
-                                                            onClick={() => handleMessageUser(friend.id)}
+                                                        <Link
+                                                            href={route('chat.index', { otherChatterId: friend.id })}
                                                             className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
                                                             title="Message"
                                                         >
                                                             <MessageSquare size={18} />
-                                                        </button>
+                                                        </Link>
                                                         <button
                                                             onClick={() => handleRemoveFriend(friend.id, friend.name)}
                                                             className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"

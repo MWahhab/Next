@@ -30,7 +30,7 @@ class FriendsList extends Model
     ];
 
     /**
-     * Fetches the data of user 1. In the case of a block, this is the user that initiated the block.
+     * Fetches the data of user 1
      *
      * @return BelongsTo
      */
@@ -40,7 +40,7 @@ class FriendsList extends Model
     }
 
     /**
-     * Fetches the data of user 2. In the case of a block, this is the user that has gotten blocked.
+     * Fetches the data of user 2
      *
      * @return BelongsTo
      */
@@ -71,7 +71,7 @@ class FriendsList extends Model
      * @param  int     $friendId Refers to the id of the other friend in the relationship
      * @return Builder           Returns a query of this friend record
      */
-    public function scopefriendRecord(Builder $query, int $userId, int $friendId): Builder
+    public function scopeFriendRecord(Builder $query, int $userId, int $friendId): Builder
     {
         return $query
             ->where(["user_1_id" => $userId, "user_2_id" => $friendId])

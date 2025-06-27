@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { Head } from "@inertiajs/react"
+import { Head, router } from "@inertiajs/react"
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout"
 import {
     Send,
@@ -18,24 +18,30 @@ import {
     Trash2,
     Edit,
     Eye,
-    EyeOff,
+    Info,
     X,
 } from "lucide-react"
 import UserProfileCard from "@/Components/UserProfileCard"
-import { useFriends } from "@/Contexts/FriendsContext"
-import { router, useRoute } from "@inertiajs/react"
+import GroupInfoModal from "@/Components/GroupInfoModal"
+import ConfirmationModal from "@/Components/ConfirmationModal"
 
-export default function Chat({ auth, chat, messages: initialMessages, participants }) {
-    const { friends, openProfileCard } = useFriends()
+export default function Chat({ auth, chat, messages: initialMessages, participants, chatUser }) {
     const [message, setMessage] = useState("")
     const [messages, setMessages] = useState(initialMessages || [])
     const [activeChat, setActiveChat] = useState(chat || null)
     const [showProfileCard, setShowProfileCard] = useState(false)
+    const [showGroupInfo, setShowGroupInfo] = useState(false)
     const [selectedUser, setSelectedUser] = useState(null)
     const [editingMessage, setEditingMessage] = useState(null)
     const [editText, setEditText] = useState("")
     const [showMessageOptions, setShowMessageOptions] = useState(null)
     const [showSeenBy, setShowSeenBy] = useState(null)
+    const [showConfirmation, setShowConfirmation] = useState(false)
+    const [confirmationData, setConfirmationData] = useState({
+        title: "",
+        message: "",
+        action: null,
+    })
     const messagesEndRef = useRef(null)
     const messageInputRef = useRef(null)
 
@@ -45,10 +51,8 @@ export default function Chat({ auth, chat, messages: initialMessages, participan
     // For one-on-one chats, find the other participant
     const otherParticipant = !isGroupChat && participants ? participants.find((p) => p.id !== auth.user.id) : null
 
-    // Find the corresponding friend object for the other participant
-    const chatFriend = otherParticipant ? friends.find((f) => f.id === otherParticipant.id) : null
-
-    const route = useRoute()
+    // Use the chatUser prop directly instead of finding it in the friends context
+    const chatFriend = chatUser || otherParticipant
 
     useEffect(() => {
         // Set the active chat based on the props
@@ -124,7 +128,7 @@ export default function Chat({ auth, chat, messages: initialMessages, participan
     }
 
     const markMessagesAsSeen = (chatId) => {
-        router.post(route("chat.mark-seen", chatId))
+        //router.post(route("chat.mark-seen", chatId))
     }
 
     const handleSendMessage = (e) => {
@@ -191,20 +195,34 @@ export default function Chat({ auth, chat, messages: initialMessages, participan
         })
     }
 
-    const handleHideChat = () => {
-        router.put(route("chat.hide", activeChat.id), {
-            preserveScroll: true,
-            onSuccess: (page) => {
-                const { notification } = page.props
-                if (notification.statusCode === 200) {
-                    window.location.href = route("chat.index")
-                }
-            },
+    const handleLeaveChat = () => {
+        setConfirmationData({
+            title: isGroupChat ? "Leave Group Chat" : "Close Conversation",
+            message: isGroupChat
+                ? `Are you sure you want to leave the "${activeChat.name}" group?`
+                : `Are you sure you want to close your conversation with ${chatFriend.name}?`,
+            action: confirmLeaveChat,
         })
+        setShowConfirmation(true)
+    }
+
+    const confirmLeaveChat = () => {
+        router.post(
+            route(isGroupChat ? "chat.leave" : "chat.close", activeChat.id),
+            {},
+            {
+                onSuccess: () => {
+                    window.location.href = route("chat.index")
+                },
+            },
+        )
     }
 
     const handleProfileClick = () => {
-        if (isGroupChat) return
+        if (isGroupChat) {
+            setShowGroupInfo(true)
+            return
+        }
 
         if (chatFriend) {
             setSelectedUser(chatFriend)
@@ -224,8 +242,34 @@ export default function Chat({ auth, chat, messages: initialMessages, participan
         }
     }
 
+    // Welcome message for empty chats
+    const getWelcomeMessage = () => {
+        if (isGroupChat) {
+            return {
+                id: "welcome",
+                message: `Welcome to the "${activeChat.name}" group chat! This is the beginning of your group conversation.`,
+                created_at: new Date().toISOString(),
+                user_id: null,
+                user: { name: "System" },
+                isSystemMessage: true,
+            }
+        } else {
+            return {
+                id: "welcome",
+                message: `This is the beginning of your conversation with ${chatFriend.name}. Say hello!`,
+                created_at: new Date().toISOString(),
+                user_id: null,
+                user: { name: "System" },
+                isSystemMessage: true,
+            }
+        }
+    }
+
+    // Display welcome message if no messages exist
+    const displayMessages = messages.length > 0 ? messages : [getWelcomeMessage()]
+
     return (
-        <AuthenticatedLayout auth={auth}>
+        <AuthenticatedLayout auth={auth} activeChat={activeChat}>
             <Head title={activeChat ? `Chat - ${activeChat.name}` : "Chat"} />
 
             <div className="flex h-full">
@@ -257,159 +301,156 @@ export default function Chat({ auth, chat, messages: initialMessages, participan
                                             )}
                                         </div>
                                     )}
-                                    <span className="ml-2 font-medium">{activeChat.name}</span>
+                                    <div className="ml-2">
+                                        <span className="font-medium">{activeChat.name}</span>
+                                        {isGroupChat && activeChat.description && (
+                                            <p className="text-xs text-gray-500 truncate max-w-[200px]">{activeChat.description}</p>
+                                        )}
+                                    </div>
                                 </div>
 
                                 <div className="flex items-center">
                                     <button
-                                        onClick={handleHideChat}
+                                        onClick={handleProfileClick}
                                         className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full"
-                                        title="Hide Chat"
+                                        title={isGroupChat ? "Group info" : "View profile"}
                                     >
-                                        <EyeOff size={18} />
+                                        <Info size={18} />
                                     </button>
-                                    <div className="relative group">
-                                        <button className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full">
-                                            <MoreVertical size={18} />
-                                        </button>
-                                        <div className="absolute right-0 mt-1 w-48 bg-white shadow-lg rounded-md overflow-hidden z-10 hidden group-hover:block">
-                                            {!isGroupChat && (
-                                                <button
-                                                    onClick={handleProfileClick}
-                                                    className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
-                                                >
-                                                    View Profile
-                                                </button>
-                                            )}
-                                            <button onClick={handleHideChat} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100">
-                                                Hide Chat
-                                            </button>
-                                        </div>
-                                    </div>
                                 </div>
                             </div>
 
                             <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
-                                {messages.map((msg) => (
+                                {displayMessages.map((msg) => (
                                     <div
                                         key={msg.id}
-                                        className={`flex ${msg.user_id === auth.user.id ? "justify-end" : "justify-start"}`}
+                                        className={`flex ${
+                                            msg.isSystemMessage
+                                                ? "justify-center"
+                                                : msg.user_id === auth.user.id
+                                                    ? "justify-end"
+                                                    : "justify-start"
+                                        }`}
                                     >
-                                        <div
-                                            className={`max-w-xs md:max-w-md rounded-lg p-3 relative ${
-                                                msg.user_id === auth.user.id
-                                                    ? "bg-blue-600 text-white"
-                                                    : "bg-white text-gray-800 border border-gray-200"
-                                            }`}
-                                        >
-                                            {isGroupChat && msg.user_id !== auth.user.id && (
-                                                <div className="font-medium text-xs mb-1">{msg.user?.name || "Unknown User"}</div>
-                                            )}
-
-                                            {editingMessage === msg.id ? (
-                                                <div className="flex flex-col">
-                                                    <input
-                                                        type="text"
-                                                        value={editText}
-                                                        onChange={(e) => setEditText(e.target.value)}
-                                                        className="p-1 border border-gray-300 rounded text-gray-800 mb-1"
-                                                        ref={messageInputRef}
-                                                    />
-                                                    <div className="flex justify-end space-x-2">
-                                                        <button
-                                                            onClick={handleCancelEdit}
-                                                            className="text-xs bg-gray-200 text-gray-800 px-2 py-1 rounded"
-                                                        >
-                                                            Cancel
-                                                        </button>
-                                                        <button
-                                                            onClick={handleSaveEdit}
-                                                            className="text-xs bg-blue-500 text-white px-2 py-1 rounded"
-                                                        >
-                                                            Save
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <p>{msg.message}</p>
-                                            )}
-
+                                        {msg.isSystemMessage ? (
+                                            <div className="bg-gray-100 text-gray-600 px-4 py-2 rounded-lg text-sm italic">{msg.message}</div>
+                                        ) : (
                                             <div
-                                                className={`text-xs mt-1 text-right flex items-center justify-end ${
-                                                    msg.user_id === auth.user.id ? "text-blue-200" : "text-gray-500"
+                                                className={`max-w-xs md:max-w-md rounded-lg p-3 relative ${
+                                                    msg.user_id === auth.user.id
+                                                        ? "bg-blue-600 text-white"
+                                                        : "bg-white text-gray-800 border border-gray-200"
                                                 }`}
                                             >
-                        <span>
-                          {new Date(msg.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                        </span>
+                                                {isGroupChat && msg.user_id !== auth.user.id && (
+                                                    <div className="font-medium text-xs mb-1">{msg.user?.name || "Unknown User"}</div>
+                                                )}
 
-                                                {msg.user_id === auth.user.id && (
-                                                    <div className="ml-1 relative">
-                                                        <button
-                                                            onClick={() => {
-                                                                setShowMessageOptions(showMessageOptions === msg.id ? null : msg.id)
-                                                                setShowSeenBy(null)
-                                                            }}
-                                                            className="p-0.5 hover:bg-blue-700 rounded"
-                                                        >
-                                                            <MoreVertical size={12} />
-                                                        </button>
+                                                {editingMessage === msg.id ? (
+                                                    <div className="flex flex-col">
+                                                        <input
+                                                            type="text"
+                                                            value={editText}
+                                                            onChange={(e) => setEditText(e.target.value)}
+                                                            className="p-1 border border-gray-300 rounded text-gray-800 mb-1"
+                                                            ref={messageInputRef}
+                                                        />
+                                                        <div className="flex justify-end space-x-2">
+                                                            <button
+                                                                onClick={handleCancelEdit}
+                                                                className="text-xs bg-gray-200 text-gray-800 px-2 py-1 rounded"
+                                                            >
+                                                                Cancel
+                                                            </button>
+                                                            <button
+                                                                onClick={handleSaveEdit}
+                                                                className="text-xs bg-blue-500 text-white px-2 py-1 rounded"
+                                                            >
+                                                                Save
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <p>{msg.message}</p>
+                                                )}
 
-                                                        {showMessageOptions === msg.id && (
-                                                            <div className="absolute right-0 bottom-full mb-1 w-32 bg-white shadow-lg rounded-md overflow-hidden z-10 text-left">
-                                                                <button
-                                                                    onClick={() => handleEditMessage(msg.id)}
-                                                                    className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-100 flex items-center"
-                                                                >
-                                                                    <Edit size={12} className="mr-1.5" /> Edit
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => handleDeleteMessage(msg.id)}
-                                                                    className="w-full text-left px-3 py-1.5 text-xs text-red-600 hover:bg-gray-100 flex items-center"
-                                                                >
-                                                                    <Trash2 size={12} className="mr-1.5" /> Delete
-                                                                </button>
-                                                                {isGroupChat && (
+                                                <div
+                                                    className={`text-xs mt-1 text-right flex items-center justify-end ${
+                                                        msg.user_id === auth.user.id ? "text-blue-200" : "text-gray-500"
+                                                    }`}
+                                                >
+                          <span>
+                            {new Date(msg.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          </span>
+
+                                                    {msg.user_id === auth.user.id && (
+                                                        <div className="ml-1 relative">
+                                                            <button
+                                                                onClick={() => {
+                                                                    setShowMessageOptions(showMessageOptions === msg.id ? null : msg.id)
+                                                                    setShowSeenBy(null)
+                                                                }}
+                                                                className="p-0.5 hover:bg-blue-700 rounded"
+                                                            >
+                                                                <MoreVertical size={12} />
+                                                            </button>
+
+                                                            {showMessageOptions === msg.id && (
+                                                                <div className="absolute right-0 bottom-full mb-1 w-32 bg-white shadow-lg rounded-md overflow-hidden z-10 text-left">
                                                                     <button
-                                                                        onClick={() => {
-                                                                            setShowSeenBy(showSeenBy === msg.id ? null : msg.id)
-                                                                            setShowMessageOptions(null)
-                                                                        }}
+                                                                        onClick={() => handleEditMessage(msg.id)}
                                                                         className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-100 flex items-center"
                                                                     >
-                                                                        <Eye size={12} className="mr-1.5" /> Seen by
+                                                                        <Edit size={12} className="mr-1.5" /> Edit
                                                                     </button>
-                                                                )}
-                                                            </div>
-                                                        )}
-
-                                                        {showSeenBy === msg.id && (
-                                                            <div className="absolute right-0 bottom-full mb-1 w-40 bg-white shadow-lg rounded-md overflow-hidden z-10">
-                                                                <div className="p-2 text-xs text-gray-700">
-                                                                    <div className="font-medium mb-1">Seen by:</div>
-                                                                    {msg.seen_by && msg.seen_by.length > 0 ? (
-                                                                        <ul className="space-y-1">
-                                                                            {msg.seen_by.map((user) => (
-                                                                                <li key={user.id} className="flex items-center">
-                                                                                    <CheckCheck size={12} className="text-blue-500 mr-1" />
-                                                                                    {user.name}
-                                                                                </li>
-                                                                            ))}
-                                                                        </ul>
-                                                                    ) : (
-                                                                        <p className="text-gray-500">Not seen yet</p>
+                                                                    <button
+                                                                        onClick={() => handleDeleteMessage(msg.id)}
+                                                                        className="w-full text-left px-3 py-1.5 text-xs text-red-600 hover:bg-gray-100 flex items-center"
+                                                                    >
+                                                                        <Trash2 size={12} className="mr-1.5" /> Delete
+                                                                    </button>
+                                                                    {isGroupChat && (
+                                                                        <button
+                                                                            onClick={() => {
+                                                                                setShowSeenBy(showSeenBy === msg.id ? null : msg.id)
+                                                                                setShowMessageOptions(null)
+                                                                            }}
+                                                                            className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-100 flex items-center"
+                                                                        >
+                                                                            <Eye size={12} className="mr-1.5" /> Seen by
+                                                                        </button>
                                                                     )}
                                                                 </div>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                )}
+                                                            )}
 
-                                                {msg.user_id === auth.user.id && !isGroupChat && (
-                                                    <div className="ml-1">{getMessageStatusIcon(msg)}</div>
-                                                )}
+                                                            {showSeenBy === msg.id && (
+                                                                <div className="absolute right-0 bottom-full mb-1 w-40 bg-white shadow-lg rounded-md overflow-hidden z-10">
+                                                                    <div className="p-2 text-xs text-gray-700">
+                                                                        <div className="font-medium mb-1">Seen by:</div>
+                                                                        {msg.seen_by && msg.seen_by.length > 0 ? (
+                                                                            <ul className="space-y-1">
+                                                                                {msg.seen_by.map((user) => (
+                                                                                    <li key={user.id} className="flex items-center">
+                                                                                        <CheckCheck size={12} className="text-blue-500 mr-1" />
+                                                                                        {user.name}
+                                                                                    </li>
+                                                                                ))}
+                                                                            </ul>
+                                                                        ) : (
+                                                                            <p className="text-gray-500">Not seen yet</p>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+
+                                                    {msg.user_id === auth.user.id && !isGroupChat && (
+                                                        <div className="ml-1">{getMessageStatusIcon(msg)}</div>
+                                                    )}
+                                                </div>
                                             </div>
-                                        </div>
+                                        )}
                                     </div>
                                 ))}
                                 <div ref={messagesEndRef} />
@@ -490,6 +531,29 @@ export default function Chat({ auth, chat, messages: initialMessages, participan
                     isRequestReceived={false}
                 />
             )}
+
+            {/* Group Info Modal */}
+            {isGroupChat && (
+                <GroupInfoModal
+                    isOpen={showGroupInfo}
+                    onClose={() => setShowGroupInfo(false)}
+                    chat={activeChat}
+                    participants={participants}
+                    currentUserId={auth.user.id}
+                />
+            )}
+
+            {/* Confirmation Modal */}
+            <ConfirmationModal
+                isOpen={showConfirmation}
+                onClose={() => setShowConfirmation(false)}
+                onConfirm={confirmationData.action}
+                title={confirmationData.title}
+                message={confirmationData.message}
+                confirmText="Confirm"
+                cancelText="Cancel"
+                type="danger"
+            />
         </AuthenticatedLayout>
     )
 }

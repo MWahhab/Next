@@ -2,12 +2,11 @@
 
 namespace App\Rules;
 
-use App\Models\BlockedList;
+use App\Models\User;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Support\Facades\Auth;
 
-class IsntBlocked implements ValidationRule
+class UsersExist implements ValidationRule
 {
     /**
      * Run the validation rule.
@@ -16,10 +15,10 @@ class IsntBlocked implements ValidationRule
      */
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
-        $blockExists = BlockedList::blockRecord($value, Auth::id())->exists();
+        $usersCount = User::whereIn("id", $value)->count();
 
-        if($blockExists) {
-            $fail("User has already blocked you!");
+        if($usersCount !== count($value)) {
+            $fail("Users passed to request do not exist in the database.");
         }
     }
 }

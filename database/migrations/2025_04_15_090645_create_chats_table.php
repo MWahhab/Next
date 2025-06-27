@@ -13,8 +13,9 @@ return new class extends Migration
     {
         Schema::create('chats', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
+            $table->string('name')->nullable();
             $table->longText('description')->nullable();
+            $table->string('chat_type');
             $table->timestamps();
         });
     }

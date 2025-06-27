@@ -2,64 +2,40 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\HideDMRequest;
 use App\Models\ChatParticipant;
-use Illuminate\Http\Request;
+use app\Services\ChatParticipantService;
+use Illuminate\Http\RedirectResponse;
 
 class ChatParticipantController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Hides a DM for a user. DM can only be unhidden by manually opening one, or by receiving a message.
+     *
+     * @param  HideDMRequest          $request
+     * @param  ChatParticipantService $service
+     * @return RedirectResponse
      */
-    public function index()
+    public function hideDirectMessage(HideDMRequest $request, ChatParticipantService $service): RedirectResponse
     {
-        //
-    }
+        $validatedRequest = $request->validated();
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
+        $hideData = $service->hideDM($validatedRequest["chatId"]);
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
-    {
-        //
-    }
-
-    /**
-     * Display the specified resource.
-     */
-    public function show(ChatParticipant $chatParticipant)
-    {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(ChatParticipant $chatParticipant)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, ChatParticipant $chatParticipant)
-    {
-        //
+        return back()->with($hideData);
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(ChatParticipant $chatParticipant)
+    public function destroy(ChatParticipant $chatParticipant, ChatParticipantService $service): RedirectResponse
     {
-        //
+        if(!$chatParticipant->exists){
+            abort(404, "Chat Participant Instance not found. Cannot delete.");
+        }
+
+        $deletionData = $service->removeParticipant($chatParticipant);
+
+        return back()->with($deletionData);
     }
 }

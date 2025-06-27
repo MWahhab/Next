@@ -2,64 +2,54 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreMessageRequest;
+use App\Http\Requests\UpdateMessageRequest;
 use App\Models\Message;
+use app\Services\MessageService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 class MessageController extends Controller
 {
     /**
-     * Display a listing of the resource.
-     */
-    public function index()
-    {
-        //
-    }
-
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
-
-    /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(StoreMessageRequest $request, MessageService $messageService): RedirectResponse
     {
-        //
-    }
+        $validatedReq = $request->validated();
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(Message $message)
-    {
-        //
-    }
+        $storeData = $messageService->storeMessage($validatedReq);
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Message $message)
-    {
-        //
+        return back()->with($storeData);
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Message $message)
+    public function update(UpdateMessageRequest $request, Message $message, MessageService $messageService): RedirectResponse
     {
-        //
+        if(!$message->exists) {
+            abort(404, "Message instance not found. Cannot update.");
+        }
+
+        $validatedReq = $request->validated();
+
+        $updateData = $messageService->updateMessage($validatedReq, $message);
+
+        return back()->with($updateData);
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Message $message)
+    public function destroy(Message $message, MessageService $messageService): RedirectResponse
     {
-        //
+        if(!$message->exists) {
+            abort(404, "Message instance not found. Cannot delete.");
+        }
+
+        $deletionData = $messageService->deleteMessage($message);
+
+        return back()->with($deletionData);
     }
 }

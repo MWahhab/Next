@@ -2,10 +2,9 @@
 
 namespace App\Http\Requests;
 
-use App\Rules\HasntBlockedUser;
 use Illuminate\Foundation\Http\FormRequest;
 
-class StoreBlockRequest extends FormRequest
+class UpdateChatRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -23,12 +22,11 @@ class StoreBlockRequest extends FormRequest
     public function rules(): array
     {
         return [
-            "blockedId" => [
-                "bail",
-                "required",
-                "integer",
-                "exists:users,id",
-                new HasntBlockedUser()
+            "title" => [
+                "string"
+            ],
+            "description" => [
+                "string"
             ]
         ];
     }
