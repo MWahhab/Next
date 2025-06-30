@@ -10,19 +10,23 @@ class ChatParticipantService
     /**
      * Hides a chat from a user
      *
-     * @param int $chatId Refers to the id of the chat
+     * @param  int   $chatId Refers to the id of the chat
      * @return array         Returns an array of data related to the attempt to hide the chat
      */
     public function hideDM(int $chatId): array
     {
+        if($chatId < 1) {
+            abort("Chat ID must be greater than 0.");
+        }
+
         $chat = ChatParticipant::where(["chat_id" => $chatId, "user_id" => Auth::id()])->firstOrFail();
 
         $chat->update(["hidden" => true]);
 
-        return array_merge([
+        return [
             "statusCode" => 200,
-            "type" => "success",
-        ]);
+            "type"       => "success",
+        ];
     }
 
     /**
